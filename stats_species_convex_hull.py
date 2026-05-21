@@ -33,7 +33,7 @@ OUTPUT_GPKG = OUTPUT_DIR / "stats_species_convex_hull.gpkg"
 SIM_CHART_DIR = OUTPUT_DIR / "hull_removal_sim"
 
 N_REMOVAL_STEPS = 10
-N_SIM_RUNS = 10
+N_SIM_RUNS = 50
 SIM_RNG_SEED = 42
 
 # Finland / Baltic — meters for planar hull area.
@@ -157,10 +157,8 @@ def plot_hull_removal_simulation(
         ax.plot(
             x,
             ys,
-            marker="o",
-            markersize=3,
             linewidth=1.2,
-            alpha=0.85,
+            alpha=0.5,
             color=f"C{i}",
         )
     mean_y = [sum(vals) / len(vals) for vals in zip(*curves)]
@@ -169,8 +167,7 @@ def plot_hull_removal_simulation(
         mean_y,
         color="black",
         linewidth=2.5,
-        marker="s",
-        markersize=4,
+        alpha=1.0,
         label="Mean",
         zorder=10,
     )
@@ -179,6 +176,16 @@ def plot_hull_removal_simulation(
     ax.set_ylabel("Convex hull area (km²)")
     ax.set_title(f"{species_name}: hull area vs random cell removals")
     ax.set_xticks(x)
+    ax.set_ylim(bottom=0)
+    for y_ref in (2000, 20_000, 50_000):
+        ax.axhline(
+            y_ref,
+            linestyle="--",
+            color="gray",
+            linewidth=1,
+            alpha=0.75,
+            zorder=0,
+        )
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
