@@ -1,0 +1,10 @@
+[project]
+name = "redlist"
+version = "0.1.0"
+description = "FinBIF occurrence statistics and visualizations"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.8",
+    "polars>=1.0",
+]
