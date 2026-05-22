@@ -25,9 +25,12 @@ SKIP_ROWS_AFTER_HEADER = 3
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # FinBIF text fields sometimes contain raw " characters (e.g. "Name" W in
+    # eventRemarks). Standard CSV quoting rules then fail; tabs still delimit.
     lf = pl.scan_csv(
         RAW_OCCURRENCES,
         separator="\t",
+        quote_char=None,
         skip_rows_after_header=SKIP_ROWS_AFTER_HEADER,
         infer_schema_length=10_000,
         try_parse_dates=True,

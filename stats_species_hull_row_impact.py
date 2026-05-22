@@ -4,7 +4,7 @@ for that species if this row were removed vs full hull — i.e. how much
 removing the row would shrink the hull (0 if the cell still appears on
 another row).
 
-Output CSV keeps only rows with hull_area_decrease_km2 > 0 and
+Output XLSX keeps only rows with hull_area_decrease_km2 > 0 and
 hull_area_if_row_removed_km2 <= 50000, plus crossed_threshold (VU/EN/CR)
 when the hull crosses an EOO-style km² threshold (most severe category
 wins).
@@ -21,7 +21,7 @@ import polars as pl
 from config import AGGREGATED_PARQUET, OUTPUT_DIR
 from stats_species_convex_hull import convex_hull_area_km2, lon_lat_to_xy_m
 
-OUTPUT_CSV = OUTPUT_DIR / "stats_species_hull_row_impact.csv"
+OUTPUT_XLSX = OUTPUT_DIR / "stats_species_hull_row_impact.xlsx"
 
 # EOO-style hull area thresholds (km²); crossed_threshold when full is above
 # and area-if-removed is below the same threshold (CR > EN > VU).
@@ -89,8 +89,11 @@ def main() -> None:
             row["crossed_threshold"] = crossed if crossed is not None else ""
             out_rows.append(row)
 
-    pl.DataFrame(out_rows).write_csv(OUTPUT_CSV)
-    print(f"Wrote {OUTPUT_CSV} ({len(out_rows)} rows)")
+    out = pl.DataFrame(out_rows)
+    if "year" in out.columns:
+        out = out.with_columns(pl.col("year").cast(pl.Int64))
+    out.write_excel(OUTPUT_XLSX, float_precision=6, autofit=True)
+    print(f"Wrote {OUTPUT_XLSX} ({len(out_rows)} rows)")
 
 
 if __name__ == "__main__":

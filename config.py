@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 # Folder name under ./data/ (FinBIF export / DwC archive folder).
-DATASET_SLUG = "HBF.122199"
+DATASET_SLUG = "HBF.122105"
 
 RAW_OCCURRENCES = ROOT / "data" / DATASET_SLUG / "occurrences.txt"
 YKJ_CENTERPOINTS = ROOT / "data" / "ykj-centerpoints.csv"

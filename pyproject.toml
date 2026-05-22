@@ -10,4 +10,5 @@ dependencies = [
     "polars>=1.0",
     "pyproj>=3.6",
     "shapely>=2.0",
+    "xlsxwriter>=3.2.9",
 ]
