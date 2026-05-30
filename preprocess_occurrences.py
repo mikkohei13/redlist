@@ -89,8 +89,9 @@ def main() -> None:
         .list.join(" ")
         .alias("speciesName"),
         pl.col("_year_prefix").cast(pl.Int32).alias("year"),
-        _begin_date.dt.ordinal_day().cast(pl.Int32).alias("day_of_year"),
-        (_end_date - _begin_date).dt.total_days().cast(pl.Int32).alias("days_span"),
+        _begin_date.dt.ordinal_day().cast(pl.Int32).alias("dayOfYear"),
+        (_end_date - _begin_date).dt.total_days().cast(pl.Int32).alias("daysSpan"),
+        _event_parts.list.first().str.strip_chars().alias("eventDateBegin"),
     ).drop("_year_prefix")
 
     lf.sink_parquet(
