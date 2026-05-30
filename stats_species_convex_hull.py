@@ -25,7 +25,7 @@ import polars as pl
 from pyproj import Transformer
 from shapely.geometry import MultiPoint, Polygon
 
-from config import AGGREGATED_PARQUET, OUTPUT_DIR
+from preprocess_occurrences import AGGREGATED_PARQUET, OUTPUT_DIR
 from gpkg_species_hulls import write_species_polygon_layers
 
 OUTPUT_CSV = OUTPUT_DIR / "stats_species_convex_hull.csv"

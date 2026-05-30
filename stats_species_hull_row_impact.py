@@ -18,7 +18,7 @@ from collections import Counter
 
 import polars as pl
 
-from config import AGGREGATED_PARQUET, OUTPUT_DIR
+from preprocess_occurrences import AGGREGATED_PARQUET, OUTPUT_DIR
 from stats_species_convex_hull import convex_hull_area_km2, lon_lat_to_xy_m
 
 OUTPUT_XLSX = OUTPUT_DIR / "stats_species_hull_row_impact.xlsx"

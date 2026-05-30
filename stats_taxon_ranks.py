@@ -6,7 +6,7 @@ Run from repo root: uv run python stats_taxon_ranks.py
 
 import polars as pl
 
-from config import OUTPUT_DIR, PROCESSED_PARQUET
+from preprocess_occurrences import OUTPUT_DIR, PROCESSED_PARQUET
 
 OUTPUT_CSV = OUTPUT_DIR / "stats_taxon_ranks.csv"
 

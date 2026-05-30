@@ -7,7 +7,7 @@ Run from repo root: uv run python viz_year_histogram.py
 import matplotlib.pyplot as plt
 import polars as pl
 
-from config import OUTPUT_DIR, PROCESSED_PARQUET
+from preprocess_occurrences import OUTPUT_DIR, PROCESSED_PARQUET
 
 OUTPUT_FIG = OUTPUT_DIR / "viz_year_histogram.png"
 

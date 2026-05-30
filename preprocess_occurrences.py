@@ -1,22 +1,22 @@
 """
 Load FinBIF occurrences.txt (tab-separated DwC), preprocess, write Parquet.
-
-Also writes occurrences_aggregated.parquet (counts by speciesName, year,
-gridCellYKJ, plus latitude/longitude from ykj-centerpoints.csv) from
-occurrences.parquet and prints a small random sample.
-
-Run from repo root: uv run python preprocess_occurrences.py
 """
+
+from pathlib import Path
 
 import polars as pl
 
-from config import (
-    AGGREGATED_PARQUET,
-    OUTPUT_DIR,
-    PROCESSED_PARQUET,
-    RAW_OCCURRENCES,
-    YKJ_CENTERPOINTS,
-)
+ROOT = Path(__file__).resolve().parent
+
+# Only value you need to change when switching datasets (FinBIF export folder under data/).
+dataset_id = "HBF.122105" # Heteroptera Suomi 10 km 1975-
+dataset_id = "HBF.122199" #Pentatomidae Suomi 10 km
+
+RAW_OCCURRENCES = ROOT / "data" / dataset_id / "occurrences.txt"
+YKJ_CENTERPOINTS = ROOT / "data" / "ykj-centerpoints.csv"
+OUTPUT_DIR = ROOT / "output" / dataset_id
+PROCESSED_PARQUET = OUTPUT_DIR / "occurrences.parquet"
+AGGREGATED_PARQUET = OUTPUT_DIR / "occurrences_aggregated.parquet"
 
 # FinBIF occurrences export: English header row, then three translated label rows.
 SKIP_ROWS_AFTER_HEADER = 3
@@ -53,6 +53,20 @@ def main() -> None:
         & (pl.col("_year_prefix").str.len_chars() == 4)
         & pl.col("_year_prefix").cast(pl.Int32, strict=False).is_not_null()
     )
+    # DwC eventDate: single YYYY-MM-DD or ISO range "begin/end". Datetimes: use date part.
+    _event_date_utf8 = pl.col("eventDate").cast(pl.Utf8, strict=False)
+    _event_parts = _event_date_utf8.str.split("/")
+    _begin_date_str = (
+        _event_parts.list.first().str.strip_chars().str.slice(0, 10)
+    )
+    _end_date_str = (
+        pl.when(_event_parts.list.len() > 1)
+        .then(_event_parts.list.get(1).str.strip_chars().str.slice(0, 10))
+        .otherwise(_begin_date_str)
+    )
+    _begin_date = _begin_date_str.str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+    _end_date = _end_date_str.str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+
     # Species name = part before the second space (binomial; trims trinomial+).
     lf = lf.with_columns(
         pl.col("scientificName")
@@ -61,6 +75,8 @@ def main() -> None:
         .list.join(" ")
         .alias("speciesName"),
         pl.col("_year_prefix").cast(pl.Int32).alias("year"),
+        _begin_date.dt.ordinal_day().cast(pl.Int32).alias("day_of_year"),
+        (_end_date - _begin_date).dt.total_days().cast(pl.Int32).alias("days_span"),
     ).drop("_year_prefix")
 
     lf.sink_parquet(

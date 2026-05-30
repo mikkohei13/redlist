@@ -5,7 +5,7 @@ Tools for red list assessment
 
 **Runtime:** Python 3.11+, dependencies and venv via [uv](https://docs.astral.sh/uv/) (`uv sync`, `uv run`).
 
-**Ingest:** FinBIF Darwin Core `occurrences.txt` is tab-delimited TSV with one English header row and three localized descriptor rows; preprocessing skips those rows after the header, then scans the file with **Polars** `scan_csv` (lazy, streaming-friendly) and materializes **Apache Parquet** (Zstd compression, column statistics) under `output/{dataset-slug}/`.
+**Ingest:** FinBIF Darwin Core `occurrences.txt` is tab-delimited TSV with one English header row and three localized descriptor rows; `preprocessing_occurrences.py` skips those rows after the header, then scans the file with **Polars** `scan_csv` (lazy, streaming-friendly) and materializes **Apache Parquet** (Zstd compression, column statistics) under `output/{dataset-slug}/`.
 
 The same step also writes `occurrences_aggregated.parquet`: row counts grouped by `speciesName`, `year`, and `gridCellYKJ` (derived from `occurrences.parquet`), and prints a tiny random sample to stdout.
 
