@@ -4,7 +4,9 @@ Per-species weighted mean and median day-of-year from aggregate_dayofyear_10km.
 Each row is a (speciesName, dayOfYear, grid cell, …) bucket with occurrenceCount;
 counts are used as weights for mean and median. Output: integer rounded mean and
 integer median DOY, ``day.month.`` calendar strings (anchor year 2024 for DOY
-366), and per-species sum of occurrenceCount.
+366), per-species sum of occurrenceCount, and the shortest linear DOY interval
+that covers at least 60% of that sum (two-pointer over days with aggregated
+counts).
 
 Run from repo root: uv run python stats_species_dayofyear.py
 """
@@ -19,6 +21,9 @@ import polars as pl
 from preprocess_occurrences import AGGREGATE_DAYOFYEAR_10KM, OUTPUT_DIR
 
 OUTPUT_TSV = OUTPUT_DIR / "stats_species_dayofyear_10km.tsv"
+
+COVER_FRACTION = 0.6
+COVER_NAME = f"cover{COVER_FRACTION*100:.0f}"
 
 # Calendar mapping for DOY → day.month. (supports DOY 366).
 _DOY_ANCHOR_YEAR = 2024
@@ -49,12 +54,58 @@ def _weighted_mean_and_median_sorted_pairs(
     return mean_val, pairs[-1][0], total_w
 
 
+def shortest_linear_doy_window_covering(
+    sorted_day_count: list[tuple[int, int]],
+    total: int,
+    fraction: float,
+) -> tuple[int, int, int, float]:
+    """
+    ``sorted_day_count``: (dayOfYear, count) sorted by day, counts summed per day.
+    Minimize ``end_day - start_day`` among windows with sum(count) >= fraction * total.
+    Returns start_day, end_day, window_sum, window_sum / total.
+    """
+    target = fraction * total
+    n = len(sorted_day_count)
+    days = [d for d, _ in sorted_day_count]
+    cnts = [c for _, c in sorted_day_count]
+    j = 0
+    cur = 0
+    best_span: int | None = None
+    best_start = 0
+    best_end = 0
+    best_sum = 0
+    for i in range(n):
+        while j < n and cur < target:
+            cur += cnts[j]
+            j += 1
+        if cur >= target:
+            start_d, end_d = days[i], days[j - 1]
+            span = end_d - start_d
+            if best_span is None or span < best_span or (
+                span == best_span
+                and (start_d < best_start or (start_d == best_start and end_d < best_end))
+            ):
+                best_span = span
+                best_start, best_end = start_d, end_d
+                best_sum = cur
+        cur -= cnts[i]
+    if best_span is None:
+        print("error: no window reaches coverage target (empty day list?)")
+        raise SystemExit(1)
+    return best_start, best_end, best_sum, best_sum / total
+
+
 def species_weighted_day_stats(group: pl.DataFrame) -> pl.DataFrame:
     g = group.sort("dayOfYear")
+    by_day = (
+        g.group_by("dayOfYear")
+        .agg(pl.col("occurrenceCount").sum())
+        .sort("dayOfYear")
+    )
     pairs = list(
         zip(
-            g["dayOfYear"].to_list(),
-            g["occurrenceCount"].to_list(),
+            by_day["dayOfYear"].to_list(),
+            by_day["occurrenceCount"].to_list(),
             strict=True,
         )
     )
@@ -62,6 +113,9 @@ def species_weighted_day_stats(group: pl.DataFrame) -> pl.DataFrame:
         pairs
     )
     mean_doy = int(round(mean_doy_f))
+    c60_start, c60_end, c60_sum, c60_frac = shortest_linear_doy_window_covering(
+        pairs, occurrence_count_sum, COVER_FRACTION
+    )
     name = g["speciesName"][0]
     return pl.DataFrame(
         {
@@ -71,6 +125,13 @@ def species_weighted_day_stats(group: pl.DataFrame) -> pl.DataFrame:
             "mean_date": [day_of_year_to_day_month_str(mean_doy)],
             "median_date": [day_of_year_to_day_month_str(median_doy)],
             "occurrenceCount_sum": [occurrence_count_sum],
+            f"{COVER_NAME}_start_day": [c60_start],
+            f"{COVER_NAME}_end_day": [c60_end],
+            f"{COVER_NAME}_days": [c60_end - c60_start + 1],
+            f"{COVER_NAME}_start_date": [day_of_year_to_day_month_str(c60_start)],
+            f"{COVER_NAME}_end_date": [day_of_year_to_day_month_str(c60_end)],
+            f"{COVER_NAME}_window_sum": [c60_sum],
+            f"{COVER_NAME}_fraction": [c60_frac],
         },
         schema={
             "speciesName": pl.Utf8,
@@ -79,6 +140,13 @@ def species_weighted_day_stats(group: pl.DataFrame) -> pl.DataFrame:
             "mean_date": pl.Utf8,
             "median_date": pl.Utf8,
             "occurrenceCount_sum": pl.Int64,
+            f"{COVER_NAME}_start_day": pl.Int64,
+            f"{COVER_NAME}_end_day": pl.Int64,
+            f"{COVER_NAME}_days": pl.Int64,
+            f"{COVER_NAME}_start_date": pl.Utf8,
+            f"{COVER_NAME}_end_date": pl.Utf8,
+            f"{COVER_NAME}_window_sum": pl.Int64,
+            f"{COVER_NAME}_fraction": pl.Float64,
         },
     )
 
