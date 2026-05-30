@@ -17,13 +17,16 @@ RAW_OCCURRENCES = ROOT / "data" / dataset_id / "occurrences.txt"
 YKJ_CENTERPOINTS = ROOT / "data" / "ykj-centerpoints.csv"
 OUTPUT_DIR = ROOT / "output" / dataset_id
 PROCESSED_PARQUET = OUTPUT_DIR / "occurrences.parquet"
-AGGREGATED_PARQUET = OUTPUT_DIR / "occurrences_aggregated.parquet"
+AGGREGATE_YEARLY_10KM = OUTPUT_DIR / "aggregate_yearly_10km.parquet"
+AGGREGATE_DAILY_10KM = OUTPUT_DIR / "aggregate_daily_10km.parquet"
+AGGREGATE_DAYOFYEAR_10KM = OUTPUT_DIR / "aggregate_dayofyear_10km.parquet"
+AGGREGATED_PARQUET = AGGREGATE_YEARLY_10KM
 
 # FinBIF occurrences export: English header row, then three translated label rows.
 SKIP_ROWS_AFTER_HEADER = 3
 
 # Small on-disk row samples (JSON array of objects only).
-SAMPLE_ROW_COUNT = 10
+SAMPLE_ROW_COUNT = 5
 # For occurrences.parquet only: draw the random sample from the first N rows
 # so we do not read the whole file back into memory on large exports.
 SAMPLE_PARQUET_MAX_ROWS = 50_000
@@ -116,7 +119,7 @@ def main() -> None:
         {"lat": "latitude", "lon": "longitude"}
     )
 
-    agg = (
+    agg_yearly = (
         pl.scan_parquet(PROCESSED_PARQUET)
         .group_by("speciesName", "year", "gridCellYKJ")
         .agg(pl.len().alias("occurrenceCount"))
@@ -127,19 +130,82 @@ def main() -> None:
             pl.col("longitude").round(6),
         )
     )
-    agg.write_parquet(
-        AGGREGATED_PARQUET,
+    agg_yearly.write_parquet(
+        AGGREGATE_YEARLY_10KM,
         compression="zstd",
         statistics=True,
     )
 
-    agg_sample = agg.sample(
-        min(SAMPLE_ROW_COUNT, agg.height),
+    agg_yearly_sample = agg_yearly.sample(
+        min(SAMPLE_ROW_COUNT, agg_yearly.height),
         seed=42,
         shuffle=True,
     )
     write_sample_rows_json(
-        OUTPUT_DIR / "occurrences_aggregated_sample.json", agg_sample
+        AGGREGATE_YEARLY_10KM.with_name(
+            AGGREGATE_YEARLY_10KM.name.replace(".parquet", "_sample.json")
+        ),
+        agg_yearly_sample,
+    )
+
+    agg_daily = (
+        pl.scan_parquet(PROCESSED_PARQUET)
+        .filter(pl.col("daysSpan") <= 2)
+        .group_by("speciesName", "eventDateBegin", "gridCellYKJ")
+        .agg(pl.len().alias("occurrenceCount"))
+        .collect()
+        .join(ykj, on="gridCellYKJ", how="left")
+        .with_columns(
+            pl.col("latitude").round(6),
+            pl.col("longitude").round(6),
+        )
+    )
+    agg_daily.write_parquet(
+        AGGREGATE_DAILY_10KM,
+        compression="zstd",
+        statistics=True,
+    )
+
+    agg_daily_sample = agg_daily.sample(
+        min(SAMPLE_ROW_COUNT, agg_daily.height),
+        seed=42,
+        shuffle=True,
+    )
+    write_sample_rows_json(
+        AGGREGATE_DAILY_10KM.with_name(
+            AGGREGATE_DAILY_10KM.name.replace(".parquet", "_sample.json")
+        ),
+        agg_daily_sample,
+    )
+
+    agg_dayofyear = (
+        pl.scan_parquet(PROCESSED_PARQUET)
+        .filter(pl.col("daysSpan") <= 2)
+        .group_by("speciesName", "dayOfYear", "gridCellYKJ")
+        .agg(pl.len().alias("occurrenceCount"))
+        .collect()
+        .join(ykj, on="gridCellYKJ", how="left")
+        .with_columns(
+            pl.col("latitude").round(6),
+            pl.col("longitude").round(6),
+        )
+    )
+    agg_dayofyear.write_parquet(
+        AGGREGATE_DAYOFYEAR_10KM,
+        compression="zstd",
+        statistics=True,
+    )
+
+    agg_dayofyear_sample = agg_dayofyear.sample(
+        min(SAMPLE_ROW_COUNT, agg_dayofyear.height),
+        seed=42,
+        shuffle=True,
+    )
+    write_sample_rows_json(
+        AGGREGATE_DAYOFYEAR_10KM.with_name(
+            AGGREGATE_DAYOFYEAR_10KM.name.replace(".parquet", "_sample.json")
+        ),
+        agg_dayofyear_sample,
     )
 
 
