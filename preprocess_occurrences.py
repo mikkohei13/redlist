@@ -2,6 +2,7 @@
 Load FinBIF occurrences.txt (tab-separated DwC), preprocess, write Parquet.
 """
 
+import json
 from pathlib import Path
 
 import polars as pl
@@ -20,6 +21,19 @@ AGGREGATED_PARQUET = OUTPUT_DIR / "occurrences_aggregated.parquet"
 
 # FinBIF occurrences export: English header row, then three translated label rows.
 SKIP_ROWS_AFTER_HEADER = 3
+
+# Small on-disk row samples (JSON array of objects only).
+SAMPLE_ROW_COUNT = 10
+# For occurrences.parquet only: draw the random sample from the first N rows
+# so we do not read the whole file back into memory on large exports.
+SAMPLE_PARQUET_MAX_ROWS = 50_000
+
+
+def write_sample_rows_json(path: Path, df: pl.DataFrame) -> None:
+    """Write a JSON array of row objects (only sample rows, no metadata)."""
+    sample_n = min(SAMPLE_ROW_COUNT, df.height)
+    rows = df.head(sample_n).to_dicts() if sample_n else []
+    path.write_text(json.dumps(rows, indent=2, default=str), encoding="utf-8")
 
 
 def main() -> None:
@@ -85,6 +99,18 @@ def main() -> None:
         statistics=True,
     )
 
+    proc_for_sample = (
+        pl.scan_parquet(PROCESSED_PARQUET)
+        .head(SAMPLE_PARQUET_MAX_ROWS)
+        .collect()
+    )
+    proc_sample = proc_for_sample.sample(
+        min(SAMPLE_ROW_COUNT, proc_for_sample.height),
+        seed=42,
+        shuffle=True,
+    )
+    write_sample_rows_json(OUTPUT_DIR / "occurrences_sample.json", proc_sample)
+
     ykj = pl.read_csv(YKJ_CENTERPOINTS, separator=";").rename(
         {"lat": "latitude", "lon": "longitude"}
     )
@@ -106,9 +132,14 @@ def main() -> None:
         statistics=True,
     )
 
-    n_sample = min(5, agg.height)
-    print(f"\nRandom sample of aggregated data ({n_sample} rows):")
-    print(agg.sample(n_sample, seed=42))
+    agg_sample = agg.sample(
+        min(SAMPLE_ROW_COUNT, agg.height),
+        seed=42,
+        shuffle=True,
+    )
+    write_sample_rows_json(
+        OUTPUT_DIR / "occurrences_aggregated_sample.json", agg_sample
+    )
 
 
 if __name__ == "__main__":

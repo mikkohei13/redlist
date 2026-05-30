@@ -1,6 +1,8 @@
-All code is run with uv. See README.md for details.
+All code is run with uv.
 
 This is a small one-person project, so keep the code simple.
+
+Don't create features user is not asking for.
 
 No command line arguments, instead parameters should be hardcoded.
 
