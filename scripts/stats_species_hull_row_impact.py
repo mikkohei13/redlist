@@ -9,19 +9,19 @@ hull_area_if_row_removed_km2 <= 50000, plus crossed_threshold (VU/EN/CR)
 when the hull crosses an EOO-style km² threshold (most severe category
 wins).
 
-Run from repo root: uv run python stats_species_hull_row_impact.py
 """
 
 from __future__ import annotations
 
+import sys
 from collections import Counter
+from pathlib import Path
 
 import polars as pl
 
-from preprocess_occurrences import AGGREGATED_PARQUET, OUTPUT_DIR
 from stats_species_convex_hull import convex_hull_area_km2, lon_lat_to_xy_m
 
-OUTPUT_XLSX = OUTPUT_DIR / "stats_species_hull_row_impact.xlsx"
+ROOT = Path(__file__).resolve().parent.parent
 
 # EOO-style hull area thresholds (km²); crossed_threshold when full is above
 # and area-if-removed is below the same threshold (CR > EN > VU).
@@ -42,7 +42,18 @@ def red_list_crossed_threshold(area_full: float, area_if_removed: float) -> str 
 
 
 def main() -> None:
-    df = pl.read_parquet(AGGREGATED_PARQUET)
+    if len(sys.argv) != 2:
+        print("Usage: uv run scripts/stats_species_hull_row_impact.py <dataset-slug>")
+        sys.exit(1)
+
+    dataset_slug = sys.argv[1]
+    output_dir = ROOT / "output" / dataset_slug
+    aggregate_parquet = output_dir / "aggregate_yearly_10km.parquet"
+    if not aggregate_parquet.is_file():
+        print(f"error: missing parquet file: {aggregate_parquet}")
+        sys.exit(1)
+
+    df = pl.read_parquet(aggregate_parquet)
     need = {"speciesName", "latitude", "longitude"}
     missing = need - set(df.columns)
     if missing:
@@ -54,7 +65,8 @@ def main() -> None:
         print("error: no rows with speciesName and coordinates")
         raise SystemExit(1)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_xlsx = output_dir / "stats_species_hull_row_impact.xlsx"
 
     out_rows: list[dict[str, object]] = []
 
@@ -92,8 +104,8 @@ def main() -> None:
     out = pl.DataFrame(out_rows)
     if "year" in out.columns:
         out = out.with_columns(pl.col("year").cast(pl.Int64))
-    out.write_excel(OUTPUT_XLSX, float_precision=6, autofit=True)
-    print(f"Wrote {OUTPUT_XLSX} ({len(out_rows)} rows)")
+    out.write_excel(output_xlsx, float_precision=6, autofit=True)
+    print(f"Wrote {output_xlsx} ({len(out_rows)} rows)")
 
 
 if __name__ == "__main__":

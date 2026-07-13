@@ -9,6 +9,7 @@ Writes Parquet (tabular) and GeoPackage (1 km square polygons, CRS EPSG:3067) fo
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import geopandas as gpd
@@ -17,19 +18,11 @@ import polars as pl
 from pyproj import Transformer
 from shapely.geometry import box
 
-ROOT = Path(__file__).resolve().parent
-
-# FinBIF citable download folder (tabular occurrences.txt).
-DATASET_DIR = ROOT / "data" / "HBF.123042-Espoo-tabular"
-RAW_OCCURRENCES = DATASET_DIR / "occurrences.txt"
+ROOT = Path(__file__).resolve().parent.parent
 
 # EPSG:3067 — ETRS-TM35FIN (EUREF-FIN), metres. Cell size on the projected plane.
 CELL_SIZE_M = 500
 CRS_LABEL = "EPSG:3067"
-
-OUTPUT_DIR = ROOT / "output" / "HBF.123042-Espoo-tabular"
-TAXA_PER_CELL_PARQUET = OUTPUT_DIR / f"taxa_per_{CELL_SIZE_M}m_cell.parquet"
-TAXA_PER_CELL_GPKG = OUTPUT_DIR / f"taxa_per_{CELL_SIZE_M}m_cell.gpkg"
 GPKG_LAYER = f"taxa_{CELL_SIZE_M}m"
 
 # FinBIF occurrences export: English header row, then three translated label rows.
@@ -37,14 +30,24 @@ SKIP_ROWS_AFTER_HEADER = 3
 
 
 def main() -> None:
-    if not RAW_OCCURRENCES.is_file():
-        print(f"error: missing occurrences file: {RAW_OCCURRENCES}")
-        raise SystemExit(1)
+    if len(sys.argv) != 2:
+        print("Usage: uv run scripts/stats_taxa_count_grid.py <dataset-slug>")
+        sys.exit(1)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    dataset_slug = sys.argv[1]
+    raw_occurrences = ROOT / "data" / dataset_slug / "occurrences.txt"
+    output_dir = ROOT / "output" / dataset_slug
+    taxa_per_cell_parquet = output_dir / f"taxa_per_{CELL_SIZE_M}m_cell.parquet"
+    taxa_per_cell_gpkg = output_dir / f"taxa_per_{CELL_SIZE_M}m_cell.gpkg"
+
+    if not raw_occurrences.is_file():
+        print(f"error: missing occurrences file: {raw_occurrences}")
+        sys.exit(1)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     lf = pl.scan_csv(
-        RAW_OCCURRENCES,
+        raw_occurrences,
         separator="\t",
         quote_char=None,
         skip_rows_after_header=SKIP_ROWS_AFTER_HEADER,
@@ -133,7 +136,7 @@ def main() -> None:
         pl.col("distinct_scientificName_count_uncapped") > pl.lit(cap_m)
     ).sort("distinct_scientificName_count_uncapped", descending=True)
 
-    agg.write_parquet(TAXA_PER_CELL_PARQUET, compression="zstd", statistics=True)
+    agg.write_parquet(taxa_per_cell_parquet, compression="zstd", statistics=True)
 
     ee = agg["cell_easting_m"].to_numpy()
     nn = agg["cell_northing_m"].to_numpy()
@@ -144,10 +147,10 @@ def main() -> None:
     cols = agg.to_dict(as_series=False)
     cols["geometry"] = geometry
     gdf = gpd.GeoDataFrame(cols, crs="EPSG:3067")
-    gdf.to_file(TAXA_PER_CELL_GPKG, driver="GPKG", layer=GPKG_LAYER)
+    gdf.to_file(taxa_per_cell_gpkg, driver="GPKG", layer=GPKG_LAYER)
 
-    print(f"wrote {TAXA_PER_CELL_PARQUET}")
-    print(f"wrote {TAXA_PER_CELL_GPKG} (layer {GPKG_LAYER!r})")
+    print(f"wrote {taxa_per_cell_parquet}")
+    print(f"wrote {taxa_per_cell_gpkg} (layer {GPKG_LAYER!r})")
     print(f"occurrence rows used: {df.height}")
     print(f"distinct grid cells: {agg.height}")
     print(

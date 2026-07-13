@@ -3,24 +3,13 @@ Load FinBIF occurrences.txt (tab-separated DwC), preprocess, write Parquet.
 """
 
 import json
+import sys
 from pathlib import Path
 
 import polars as pl
 
 ROOT = Path(__file__).resolve().parent
-
-# Only value you need to change when switching datasets (FinBIF export folder under data/).
-dataset_id = "HBF.122199" #Pentatomidae Suomi 10 km
-dataset_id = "HBF.122105" # Heteroptera Suomi 10 km 1975-
-
-RAW_OCCURRENCES = ROOT / "data" / dataset_id / "occurrences.txt"
 YKJ_CENTERPOINTS = ROOT / "data" / "ykj-centerpoints.csv"
-OUTPUT_DIR = ROOT / "output" / dataset_id
-PROCESSED_PARQUET = OUTPUT_DIR / "occurrences.parquet"
-AGGREGATE_YEARLY_10KM = OUTPUT_DIR / "aggregate_yearly_10km.parquet"
-AGGREGATE_DAILY_10KM = OUTPUT_DIR / "aggregate_daily_10km.parquet"
-AGGREGATE_DAYOFYEAR_10KM = OUTPUT_DIR / "aggregate_dayofyear_10km.parquet"
-AGGREGATED_PARQUET = AGGREGATE_YEARLY_10KM
 
 # FinBIF occurrences export: English header row, then three translated label rows.
 SKIP_ROWS_AFTER_HEADER = 3
@@ -40,12 +29,24 @@ def write_sample_rows_json(path: Path, df: pl.DataFrame) -> None:
 
 
 def main() -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    if len(sys.argv) != 2:
+        print("Usage: uv run preprocess_occurrences.py <dataset-slug>")
+        sys.exit(1)
+
+    dataset_id = sys.argv[1]
+    raw_occurrences = ROOT / "data" / dataset_id / "occurrences.txt"
+    output_dir = ROOT / "output" / dataset_id
+    processed_parquet = output_dir / "occurrences.parquet"
+    aggregate_yearly_10km = output_dir / "aggregate_yearly_10km.parquet"
+    aggregate_daily_10km = output_dir / "aggregate_daily_10km.parquet"
+    aggregate_dayofyear_10km = output_dir / "aggregate_dayofyear_10km.parquet"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # FinBIF text fields sometimes contain raw " characters (e.g. "Name" W in
     # eventRemarks). Standard CSV quoting rules then fail; tabs still delimit.
     lf = pl.scan_csv(
-        RAW_OCCURRENCES,
+        raw_occurrences,
         separator="\t",
         quote_char=None,
         skip_rows_after_header=SKIP_ROWS_AFTER_HEADER,
@@ -98,13 +99,13 @@ def main() -> None:
     ).drop("_year_prefix")
 
     lf.sink_parquet(
-        PROCESSED_PARQUET,
+        processed_parquet,
         compression="zstd",
         statistics=True,
     )
 
     proc_for_sample = (
-        pl.scan_parquet(PROCESSED_PARQUET)
+        pl.scan_parquet(processed_parquet)
         .head(SAMPLE_PARQUET_MAX_ROWS)
         .collect()
     )
@@ -113,14 +114,14 @@ def main() -> None:
         seed=42,
         shuffle=True,
     )
-    write_sample_rows_json(OUTPUT_DIR / "occurrences_sample.json", proc_sample)
+    write_sample_rows_json(output_dir / "occurrences_sample.json", proc_sample)
 
     ykj = pl.read_csv(YKJ_CENTERPOINTS, separator=";").rename(
         {"lat": "latitude", "lon": "longitude"}
     )
 
     agg_yearly = (
-        pl.scan_parquet(PROCESSED_PARQUET)
+        pl.scan_parquet(processed_parquet)
         .group_by("speciesName", "year", "gridCellYKJ")
         .agg(
             pl.len().alias("occurrenceCount"),
@@ -135,7 +136,7 @@ def main() -> None:
         )
     )
     agg_yearly.write_parquet(
-        AGGREGATE_YEARLY_10KM,
+        aggregate_yearly_10km,
         compression="zstd",
         statistics=True,
     )
@@ -146,14 +147,14 @@ def main() -> None:
         shuffle=True,
     )
     write_sample_rows_json(
-        AGGREGATE_YEARLY_10KM.with_name(
-            AGGREGATE_YEARLY_10KM.name.replace(".parquet", "_sample.json")
+        aggregate_yearly_10km.with_name(
+            aggregate_yearly_10km.name.replace(".parquet", "_sample.json")
         ),
         agg_yearly_sample,
     )
 
     agg_daily = (
-        pl.scan_parquet(PROCESSED_PARQUET)
+        pl.scan_parquet(processed_parquet)
         .filter(pl.col("daysSpan") <= 2)
         .group_by("speciesName", "eventDateBegin", "gridCellYKJ")
         .agg(
@@ -169,7 +170,7 @@ def main() -> None:
         )
     )
     agg_daily.write_parquet(
-        AGGREGATE_DAILY_10KM,
+        aggregate_daily_10km,
         compression="zstd",
         statistics=True,
     )
@@ -180,14 +181,14 @@ def main() -> None:
         shuffle=True,
     )
     write_sample_rows_json(
-        AGGREGATE_DAILY_10KM.with_name(
-            AGGREGATE_DAILY_10KM.name.replace(".parquet", "_sample.json")
+        aggregate_daily_10km.with_name(
+            aggregate_daily_10km.name.replace(".parquet", "_sample.json")
         ),
         agg_daily_sample,
     )
 
     agg_dayofyear = (
-        pl.scan_parquet(PROCESSED_PARQUET)
+        pl.scan_parquet(processed_parquet)
         .filter(pl.col("daysSpan") <= 2)
         .group_by("speciesName", "year", "dayOfYear", "gridCellYKJ")
         .agg(
@@ -203,7 +204,7 @@ def main() -> None:
         )
     )
     agg_dayofyear.write_parquet(
-        AGGREGATE_DAYOFYEAR_10KM,
+        aggregate_dayofyear_10km,
         compression="zstd",
         statistics=True,
     )
@@ -214,8 +215,8 @@ def main() -> None:
         shuffle=True,
     )
     write_sample_rows_json(
-        AGGREGATE_DAYOFYEAR_10KM.with_name(
-            AGGREGATE_DAYOFYEAR_10KM.name.replace(".parquet", "_sample.json")
+        aggregate_dayofyear_10km.with_name(
+            aggregate_dayofyear_10km.name.replace(".parquet", "_sample.json")
         ),
         agg_dayofyear_sample,
     )

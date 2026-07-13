@@ -7,14 +7,13 @@ aggregate row per species), then DOY stats and cover window columns.
 
 from __future__ import annotations
 
+import sys
 from datetime import date, timedelta
 from pathlib import Path
 
 import polars as pl
 
-from preprocess_occurrences import AGGREGATE_DAYOFYEAR_10KM, OUTPUT_DIR
-
-OUTPUT_TSV = OUTPUT_DIR / "stats_species_dayofyear_10km.tsv"
+ROOT = Path(__file__).resolve().parent.parent
 
 COVER_FRACTION = 0.6
 COVER_NAME = f"cover{COVER_FRACTION*100:.0f}"
@@ -152,10 +151,16 @@ def species_weighted_day_stats(group: pl.DataFrame) -> pl.DataFrame:
 
 
 def main() -> None:
-    path: Path = AGGREGATE_DAYOFYEAR_10KM
+    if len(sys.argv) != 2:
+        print("Usage: uv run scripts/stats_species_dayofyear.py <dataset-slug>")
+        sys.exit(1)
+
+    dataset_slug = sys.argv[1]
+    output_dir = ROOT / "output" / dataset_slug
+    path = output_dir / "aggregate_dayofyear_10km.parquet"
     if not path.is_file():
-        print(f"error: missing aggregate file {path}")
-        raise SystemExit(1)
+        print(f"error: missing parquet file: {path}")
+        sys.exit(1)
     df = pl.read_parquet(path)
     for col in ("taxonConceptID", "vernacularName"):
         if col not in df.columns:
@@ -166,9 +171,10 @@ def main() -> None:
         .map_groups(species_weighted_day_stats)
         .sort("speciesName")
     )
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out.write_csv(OUTPUT_TSV, separator="\t")
-    print(f"Wrote {OUTPUT_TSV} ({out.height} species)")
+    output_tsv = output_dir / "stats_species_dayofyear_10km.tsv"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out.write_csv(output_tsv, separator="\t")
+    print(f"Wrote {output_tsv} ({out.height} species)")
 
 
 if __name__ == "__main__":

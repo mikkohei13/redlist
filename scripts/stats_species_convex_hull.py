@@ -4,8 +4,6 @@ area in km² after projecting to ETRS-TM35FIN (EPSG:3067).
 
 Reads occurrences_aggregated.parquet (speciesName, latitude, longitude).
 
-Run from repo root: uv run python stats_species_convex_hull.py
-
 Extension: import `hull_areas_table` (returns a stats frame plus polygon rows
 for GeoPackage) and pass any subset of the same schema (e.g. after dropping
 rows) to compare hull areas without changing the geometry helpers.
@@ -18,6 +16,7 @@ cells one at a time (10 removals) and plot hull area vs removals.
 from __future__ import annotations
 
 import random
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -25,12 +24,9 @@ import polars as pl
 from pyproj import Transformer
 from shapely.geometry import MultiPoint, Polygon
 
-from preprocess_occurrences import AGGREGATED_PARQUET, OUTPUT_DIR
 from gpkg_species_hulls import write_species_polygon_layers
 
-OUTPUT_CSV = OUTPUT_DIR / "stats_species_convex_hull.csv"
-OUTPUT_GPKG = OUTPUT_DIR / "stats_species_convex_hull.gpkg"
-SIM_CHART_DIR = OUTPUT_DIR / "hull_removal_sim"
+ROOT = Path(__file__).resolve().parent.parent
 
 N_REMOVAL_STEPS = 10
 N_SIM_RUNS = 50
@@ -222,21 +218,35 @@ def run_removal_simulation_charts(
 
 
 def main() -> None:
-    aggregated = pl.read_parquet(AGGREGATED_PARQUET)
-    out, gpkg_rows = hull_areas_table(aggregated)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out.write_csv(OUTPUT_CSV)
-    print(f"Wrote {OUTPUT_CSV} ({out.height} species)")
+    if len(sys.argv) != 2:
+        print("Usage: uv run scripts/stats_species_convex_hull.py <dataset-slug>")
+        sys.exit(1)
 
-    n_layers = write_species_polygon_layers(OUTPUT_GPKG, gpkg_rows)
+    dataset_slug = sys.argv[1]
+    output_dir = ROOT / "output" / dataset_slug
+    aggregate_parquet = output_dir / "aggregate_yearly_10km.parquet"
+    if not aggregate_parquet.is_file():
+        print(f"error: missing parquet file: {aggregate_parquet}")
+        sys.exit(1)
+
+    aggregated = pl.read_parquet(aggregate_parquet)
+    out, gpkg_rows = hull_areas_table(aggregated)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_csv = output_dir / "stats_species_convex_hull.csv"
+    output_gpkg = output_dir / "stats_species_convex_hull.gpkg"
+    sim_chart_dir = output_dir / "hull_removal_sim"
+    out.write_csv(output_csv)
+    print(f"Wrote {output_csv} ({out.height} species)")
+
+    n_layers = write_species_polygon_layers(output_gpkg, gpkg_rows)
     if n_layers == 0:
         print("error: no convex hull polygons to write to GeoPackage")
-        raise SystemExit(1)
-    print(f"Wrote {OUTPUT_GPKG} ({n_layers} layers)")
+        sys.exit(1)
+    print(f"Wrote {output_gpkg} ({n_layers} layers)")
 
     run_removal_simulation_charts(
         aggregated,
-        SIM_CHART_DIR,
+        sim_chart_dir,
         N_REMOVAL_STEPS,
         N_SIM_RUNS,
         SIM_RNG_SEED,

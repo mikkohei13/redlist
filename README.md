@@ -1,14 +1,27 @@
 # redlist
-Tools for red list assessment
+
+Tools for generating biodiversity occurrence statistics for red list assessment and other purposes.
+
+## Usage
+
+Requires uv and python 3.11+.
+
+1. Download citable data from FinBIF
+2. Unzip the data to `data/`
+3. Run `uv run preprocess_occurrences.py <dataset-slug>` to preprocess the data
+4. Run a selected script from the `scripts/` directory to generate the statistics
 
 ## Pipeline (technical)
 
-**Runtime:** Python 3.11+, dependencies and venv via [uv](https://docs.astral.sh/uv/) (`uv sync`, `uv run`).
+Python 3.11+, dependencies via uv.
 
-**Ingest:** FinBIF Darwin Core `occurrences.txt` is tab-delimited TSV with one English header row and three localized descriptor rows; `preprocessing_occurrences.py` skips those rows after the header, then scans the file with **Polars** `scan_csv` (lazy, streaming-friendly) and materializes **Apache Parquet** (Zstd compression, column statistics) under `output/{dataset-slug}/`.
+**Layout.** Raw FinBIF citable exports live under `data/{dataset-slug}/` (must contain `occurrences.txt`). Shared grid lookup: `data/ykj-centerpoints.csv`. All derived files go to `output/{dataset-slug}/`.
 
-The same step also writes `occurrences_aggregated.parquet`: row counts grouped by `speciesName`, `year`, and `gridCellYKJ` (derived from `occurrences.parquet`), and prints a tiny random sample to stdout.
+**Preprocessing** (`preprocess_occurrences.py`). Scans the DwC TSV with Polars (`scan_csv`, lazy/streaming), normalizes fields, and writes Parquet plus a small JSON sample per file:
 
-**Intermediate:** Downstream jobs use `scan_parquet` / `read_parquet` on the same Parquet artifact—columnar storage avoids re-parsing TSV and keeps memory bounded for large row counts.
+- `occurrences.parquet` — one row per filtered occurrence
+- `aggregate_yearly_10km.parquet` — counts by species, year, YKJ 10 km cell
+- `aggregate_daily_10km.parquet` — counts by species, event date, YKJ cell (short date spans only)
+- `aggregate_dayofyear_10km.parquet` — counts by species, year, day-of-year, YKJ cell
 
-**Egress:** Each analysis script is standalone; paths and dataset slug live in `config.py`. Outputs (CSVs, figures, etc.) are written beside the Parquet under `output/{dataset-slug}/`.
+**Statistics** (`scripts/`). Each script takes `<dataset-slug>` as its only argument, reads one preprocessed Parquet (or, for grid taxon counts, the raw `occurrences.txt`), and writes results to the same `output/{dataset-slug}/` folder. Missing input files cause an immediate error and exit.
