@@ -68,6 +68,21 @@ def write_sample_rows_json(path: Path, df: pl.DataFrame) -> None:
     path.write_text(json.dumps(rows, indent=2, default=str), encoding="utf-8")
 
 
+def print_statistics(parquet_path: Path) -> None:
+    species_counts = (
+        pl.scan_parquet(parquet_path)
+        .group_by("speciesName")
+        .len()
+        .sort("len", descending=True)
+        .collect()
+    )
+    total_rows = species_counts["len"].sum()
+    print(f"occurrences.parquet: {total_rows} rows, {species_counts.height} species")
+    print("speciesName counts (descending):")
+    for name, count in species_counts.select("speciesName", "len").iter_rows():
+        print(f"  {count}\t{name}")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         print("Usage: uv run preprocess_occurrences.py <dataset-slug>")
@@ -144,6 +159,7 @@ def main() -> None:
         compression="zstd",
         statistics=True,
     )
+    print_statistics(processed_parquet)
 
     proc_for_sample = (
         pl.scan_parquet(processed_parquet)
