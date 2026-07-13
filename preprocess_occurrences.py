@@ -6,7 +6,9 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
 import polars as pl
+from pyproj import Transformer
 
 ROOT = Path(__file__).resolve().parent
 YKJ_CENTERPOINTS = ROOT / "data" / "ykj-centerpoints.csv"
@@ -19,6 +21,44 @@ SAMPLE_ROW_COUNT = 5
 # For occurrences.parquet only: draw the random sample from the first N rows
 # so we do not read the whole file back into memory on large exports.
 SAMPLE_PARQUET_MAX_ROWS = 50_000
+
+_WGS84_TO_2393 = Transformer.from_crs("EPSG:4326", "EPSG:2393", always_xy=True)
+_2393_TO_WGS84 = Transformer.from_crs("EPSG:2393", "EPSG:4326", always_xy=True)
+
+
+def ykj_1km_from_wgs84(lon: np.ndarray, lat: np.ndarray) -> pl.Series:
+    """Project WGS84 points to EPSG:2393 and return 1 km YKJ grid cell IDs."""
+    e, n = _WGS84_TO_2393.transform(lon, lat)
+    e = np.asarray(e, dtype=np.float64)
+    n = np.asarray(n, dtype=np.float64)
+    n_km = (n // 1000).astype(np.int64)
+    e_km = (e // 1000).astype(np.int64)
+    return pl.Series(
+        "gridCellYKJ",
+        [f"{nk}:{ek}" for nk, ek in zip(n_km, e_km, strict=True)],
+    )
+
+
+def ykj_1km_centerpoints(grid_cells: pl.Series) -> pl.DataFrame:
+    """WGS84 center of each 1 km YKJ cell (northing_km:easting_km)."""
+    unique = grid_cells.unique().to_list()
+    lats: list[float] = []
+    lons: list[float] = []
+    for cell in unique:
+        n_km, e_km = cell.split(":")
+        lon, lat = _2393_TO_WGS84.transform(
+            int(e_km) * 1000 + 500,
+            int(n_km) * 1000 + 500,
+        )
+        lats.append(lat)
+        lons.append(lon)
+    return pl.DataFrame(
+        {
+            "gridCellYKJ": unique,
+            "latitude": lats,
+            "longitude": lons,
+        }
+    )
 
 
 def write_sample_rows_json(path: Path, df: pl.DataFrame) -> None:
@@ -39,6 +79,7 @@ def main() -> None:
     processed_parquet = output_dir / "occurrences.parquet"
     aggregate_yearly_10km = output_dir / "aggregate_yearly_10km.parquet"
     aggregate_daily_10km = output_dir / "aggregate_daily_10km.parquet"
+    aggregate_daily_1km = output_dir / "aggregate_daily_1km.parquet"
     aggregate_dayofyear_10km = output_dir / "aggregate_dayofyear_10km.parquet"
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -185,6 +226,71 @@ def main() -> None:
             aggregate_daily_10km.name.replace(".parquet", "_sample.json")
         ),
         agg_daily_sample,
+    )
+
+    daily_1km_base = (
+        pl.scan_parquet(processed_parquet)
+        .filter(pl.col("daysSpan") <= 2)
+        .filter(pl.col("coordinateAccuracy").cast(pl.Float64, strict=False) <= 1000)
+        .filter(
+            pl.col("decimalLatitude").is_not_null()
+            & pl.col("decimalLongitude").is_not_null()
+        )
+        .select(
+            "speciesName",
+            "eventDateBegin",
+            "taxonConceptID",
+            "vernacularName",
+            "decimalLatitude",
+            "decimalLongitude",
+        )
+        .collect()
+    )
+    lon = daily_1km_base["decimalLongitude"].to_numpy()
+    lat = daily_1km_base["decimalLatitude"].to_numpy()
+    finite = np.isfinite(lon) & np.isfinite(lat)
+    daily_1km_base = daily_1km_base.filter(pl.Series("_finite", finite)).drop(
+        "decimalLatitude", "decimalLongitude"
+    )
+    daily_1km_base = daily_1km_base.with_columns(
+        ykj_1km_from_wgs84(lon[finite], lat[finite])
+    )
+
+    agg_daily_1km = (
+        daily_1km_base.group_by("speciesName", "eventDateBegin", "gridCellYKJ")
+        .agg(
+            pl.len().alias("occurrenceCount"),
+            pl.col("taxonConceptID").first(),
+            pl.col("vernacularName").first(),
+        )
+    )
+    agg_daily_1km = (
+        agg_daily_1km.join(
+            ykj_1km_centerpoints(agg_daily_1km["gridCellYKJ"]),
+            on="gridCellYKJ",
+            how="left",
+        )
+        .with_columns(
+            pl.col("latitude").round(6),
+            pl.col("longitude").round(6),
+        )
+    )
+    agg_daily_1km.write_parquet(
+        aggregate_daily_1km,
+        compression="zstd",
+        statistics=True,
+    )
+
+    agg_daily_1km_sample = agg_daily_1km.sample(
+        min(SAMPLE_ROW_COUNT, agg_daily_1km.height),
+        seed=42,
+        shuffle=True,
+    )
+    write_sample_rows_json(
+        aggregate_daily_1km.with_name(
+            aggregate_daily_1km.name.replace(".parquet", "_sample.json")
+        ),
+        agg_daily_1km_sample,
     )
 
     agg_dayofyear = (
