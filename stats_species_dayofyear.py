@@ -1,14 +1,8 @@
 """
-Per-species weighted mean and median day-of-year from aggregate_dayofyear_10km.
+Per-species mean and median day-of-year & window coverage from aggregate_dayofyear_10km.
 
-Each row is a (speciesName, dayOfYear, grid cell, …) bucket with occurrenceCount;
-counts are used as weights for mean and median. Output: integer rounded mean and
-integer median DOY, ``day.month.`` calendar strings (anchor year 2024 for DOY
-366), per-species sum of occurrenceCount, and the shortest linear DOY interval
-that covers at least 60% of that sum (two-pointer over days with aggregated
-counts).
-
-Run from repo root: uv run python stats_species_dayofyear.py
+Output includes ``speciesName``, ``taxonConceptID``, and ``vernacularName`` (from the first
+aggregate row per species), then DOY stats and cover window columns.
 """
 
 from __future__ import annotations
@@ -38,10 +32,10 @@ def day_of_year_to_day_month_str(doy: int) -> str:
 def _weighted_mean_and_median_sorted_pairs(
     pairs: list[tuple[int, int]],
 ) -> tuple[float, int, int]:
-    """pairs: (dayOfYear, occurrenceCount) sorted by dayOfYear. Returns mean (float), median day, total weight."""
+    """pairs: (dayOfYear, row_weight) sorted by day. Returns mean (float), median day, total weight."""
     total_w = sum(w for _, w in pairs)
     if total_w == 0:
-        print("error: zero total occurrenceCount in group")
+        print("error: zero aggregate rows in group")
         raise SystemExit(1)
     weighted_sum = sum(d * w for d, w in pairs)
     mean_val = weighted_sum / total_w
@@ -60,9 +54,9 @@ def shortest_linear_doy_window_covering(
     fraction: float,
 ) -> tuple[int, int, int, float]:
     """
-    ``sorted_day_count``: (dayOfYear, count) sorted by day, counts summed per day.
-    Minimize ``end_day - start_day`` among windows with sum(count) >= fraction * total.
-    Returns start_day, end_day, window_sum, window_sum / total.
+    ``sorted_day_count``: (dayOfYear, row_weight) sorted by day (weights per day).
+    Minimize ``end_day - start_day`` among windows with sum(weight) >= fraction * total.
+    Returns start_day, end_day, window_weight_sum, window_weight_sum / total.
     """
     target = fraction * total
     n = len(sorted_day_count)
@@ -97,34 +91,38 @@ def shortest_linear_doy_window_covering(
 
 def species_weighted_day_stats(group: pl.DataFrame) -> pl.DataFrame:
     g = group.sort("dayOfYear")
+    taxon_id = g["taxonConceptID"][0]
+    vernacular = g["vernacularName"][0]
     by_day = (
         g.group_by("dayOfYear")
-        .agg(pl.col("occurrenceCount").sum())
+        .agg(pl.len().alias("row_count"))
         .sort("dayOfYear")
     )
     pairs = list(
         zip(
             by_day["dayOfYear"].to_list(),
-            by_day["occurrenceCount"].to_list(),
+            by_day["row_count"].to_list(),
             strict=True,
         )
     )
-    mean_doy_f, median_doy, occurrence_count_sum = _weighted_mean_and_median_sorted_pairs(
+    mean_doy_f, median_doy, species_row_total = _weighted_mean_and_median_sorted_pairs(
         pairs
     )
     mean_doy = int(round(mean_doy_f))
     c60_start, c60_end, c60_sum, c60_frac = shortest_linear_doy_window_covering(
-        pairs, occurrence_count_sum, COVER_FRACTION
+        pairs, species_row_total, COVER_FRACTION
     )
     name = g["speciesName"][0]
     return pl.DataFrame(
         {
             "speciesName": [name],
+            "taxonConceptID": [taxon_id],
+            "vernacularName": [vernacular],
             "mean_dayOfYear": [mean_doy],
             "median_dayOfYear": [median_doy],
             "mean_date": [day_of_year_to_day_month_str(mean_doy)],
             "median_date": [day_of_year_to_day_month_str(median_doy)],
-            "occurrenceCount_sum": [occurrence_count_sum],
+            "aggregate_row_count": [species_row_total],
             f"{COVER_NAME}_start_day": [c60_start],
             f"{COVER_NAME}_end_day": [c60_end],
             f"{COVER_NAME}_days": [c60_end - c60_start + 1],
@@ -135,11 +133,13 @@ def species_weighted_day_stats(group: pl.DataFrame) -> pl.DataFrame:
         },
         schema={
             "speciesName": pl.Utf8,
+            "taxonConceptID": pl.Utf8,
+            "vernacularName": pl.Utf8,
             "mean_dayOfYear": pl.Int64,
             "median_dayOfYear": pl.Int64,
             "mean_date": pl.Utf8,
             "median_date": pl.Utf8,
-            "occurrenceCount_sum": pl.Int64,
+            "aggregate_row_count": pl.Int64,
             f"{COVER_NAME}_start_day": pl.Int64,
             f"{COVER_NAME}_end_day": pl.Int64,
             f"{COVER_NAME}_days": pl.Int64,
@@ -157,6 +157,10 @@ def main() -> None:
         print(f"error: missing aggregate file {path}")
         raise SystemExit(1)
     df = pl.read_parquet(path)
+    for col in ("taxonConceptID", "vernacularName"):
+        if col not in df.columns:
+            print(f"error: aggregate parquet missing column {col!r}; rerun preprocess_occurrences.py")
+            raise SystemExit(1)
     out = (
         df.group_by("speciesName", maintain_order=True)
         .map_groups(species_weighted_day_stats)

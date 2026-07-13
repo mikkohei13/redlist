@@ -10,8 +10,8 @@ import polars as pl
 ROOT = Path(__file__).resolve().parent
 
 # Only value you need to change when switching datasets (FinBIF export folder under data/).
-dataset_id = "HBF.122105" # Heteroptera Suomi 10 km 1975-
 dataset_id = "HBF.122199" #Pentatomidae Suomi 10 km
+dataset_id = "HBF.122105" # Heteroptera Suomi 10 km 1975-
 
 RAW_OCCURRENCES = ROOT / "data" / dataset_id / "occurrences.txt"
 YKJ_CENTERPOINTS = ROOT / "data" / "ykj-centerpoints.csv"
@@ -122,7 +122,11 @@ def main() -> None:
     agg_yearly = (
         pl.scan_parquet(PROCESSED_PARQUET)
         .group_by("speciesName", "year", "gridCellYKJ")
-        .agg(pl.len().alias("occurrenceCount"))
+        .agg(
+            pl.len().alias("occurrenceCount"),
+            pl.col("taxonConceptID").first(),
+            pl.col("vernacularName").first(),
+        )
         .collect()
         .join(ykj, on="gridCellYKJ", how="left")
         .with_columns(
@@ -152,7 +156,11 @@ def main() -> None:
         pl.scan_parquet(PROCESSED_PARQUET)
         .filter(pl.col("daysSpan") <= 2)
         .group_by("speciesName", "eventDateBegin", "gridCellYKJ")
-        .agg(pl.len().alias("occurrenceCount"))
+        .agg(
+            pl.len().alias("occurrenceCount"),
+            pl.col("taxonConceptID").first(),
+            pl.col("vernacularName").first(),
+        )
         .collect()
         .join(ykj, on="gridCellYKJ", how="left")
         .with_columns(
@@ -181,8 +189,12 @@ def main() -> None:
     agg_dayofyear = (
         pl.scan_parquet(PROCESSED_PARQUET)
         .filter(pl.col("daysSpan") <= 2)
-        .group_by("speciesName", "dayOfYear", "gridCellYKJ")
-        .agg(pl.len().alias("occurrenceCount"))
+        .group_by("speciesName", "year", "dayOfYear", "gridCellYKJ")
+        .agg(
+            pl.len().alias("occurrenceCount"),
+            pl.col("taxonConceptID").first(),
+            pl.col("vernacularName").first(),
+        )
         .collect()
         .join(ykj, on="gridCellYKJ", how="left")
         .with_columns(
