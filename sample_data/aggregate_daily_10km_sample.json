@@ -1,0 +1,52 @@
+[
+  {
+    "speciesName": "Palomena prasina",
+    "eventDateBegin": "2014-08-03",
+    "gridCellYKJ": "686:359",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.230533",
+    "vernacularName": "viherlude",
+    "latitude": 61.879923,
+    "longitude": 28.802874
+  },
+  {
+    "speciesName": "Hesperocorixa sahlbergi",
+    "eventDateBegin": "2021-08-27",
+    "gridCellYKJ": "685:358",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.229631",
+    "vernacularName": "moniraitamalluainen",
+    "latitude": 61.792584,
+    "longitude": 28.608151
+  },
+  {
+    "speciesName": "Globiceps flavomaculatus",
+    "eventDateBegin": "2022-07-12",
+    "gridCellYKJ": "690:353",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.230004",
+    "vernacularName": "nurmipallop\u00e4\u00e4",
+    "latitude": 62.249027,
+    "longitude": 27.670212
+  },
+  {
+    "speciesName": "Peritrechus geniculatus",
+    "eventDateBegin": "2020-06-19",
+    "gridCellYKJ": "675:348",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.230365",
+    "vernacularName": "ketoharmolude",
+    "latitude": 60.904321,
+    "longitude": 26.720489
+  },
+  {
+    "speciesName": "Aradus corticalis",
+    "eventDateBegin": "2020-01-21",
+    "gridCellYKJ": "672:350",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.230246",
+    "vernacularName": "k\u00e4\u00e4p\u00e4latikka",
+    "latitude": 60.635346,
+    "longitude": 27.088272
+  }
+]

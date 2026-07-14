@@ -1,0 +1,52 @@
+[
+  {
+    "speciesName": "Peritrechus geniculatus",
+    "year": 2022,
+    "gridCellYKJ": "678:359",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.230365",
+    "vernacularName": "ketoharmolude",
+    "latitude": 61.162381,
+    "longitude": 28.761779
+  },
+  {
+    "speciesName": "Plagiognathus chrysanthemi",
+    "year": 2019,
+    "gridCellYKJ": "677:351",
+    "occurrenceCount": 2,
+    "taxonConceptID": "http://tun.fi/MX.230033",
+    "vernacularName": "ketomustapolvi",
+    "latitude": 61.083819,
+    "longitude": 27.274823
+  },
+  {
+    "speciesName": "Lygus punctatus",
+    "year": 2021,
+    "gridCellYKJ": "690:340",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.229914",
+    "vernacularName": "puolukkalude",
+    "latitude": 62.238565,
+    "longitude": 25.169226
+  },
+  {
+    "speciesName": "Nabis ferus",
+    "year": 2006,
+    "gridCellYKJ": "667:336",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.230131",
+    "vernacularName": "olkinaskalilude",
+    "latitude": 60.164249,
+    "longitude": 24.565173
+  },
+  {
+    "speciesName": "Sigara nigrolineata",
+    "year": 2021,
+    "gridCellYKJ": "685:359",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.229646",
+    "vernacularName": "ojapikkumalluainen",
+    "latitude": 61.790235,
+    "longitude": 28.797617
+  }
+]
