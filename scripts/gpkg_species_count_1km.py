@@ -6,14 +6,13 @@ Reads aggregate_daily_1km.parquet and writes one polygon layer (EPSG:2393).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import geopandas as gpd
 import polars as pl
 from shapely.geometry import box
 
-ROOT = Path(__file__).resolve().parent.parent
+from dataset_io import dataset_from_argv, output_path, require_file
+
+USAGE = "uv run scripts/gpkg_species_count_1km.py <dataset-slug>"
 
 CELL_SIZE_M = 1000
 CRS = "EPSG:2393"
@@ -29,18 +28,9 @@ def ykj_cell_polygon(grid_cell: str) -> box:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print("Usage: uv run scripts/gpkg_species_count_1km.py <dataset-slug>")
-        sys.exit(1)
-
-    dataset_slug = sys.argv[1]
-    output_dir = ROOT / "output" / dataset_slug
-    input_parquet = output_dir / "aggregate_daily_1km.parquet"
-    output_gpkg = output_dir / "species_count_1km.gpkg"
-
-    if not input_parquet.is_file():
-        print(f"error: missing parquet file: {input_parquet}")
-        sys.exit(1)
+    ds = dataset_from_argv(usage=USAGE)
+    input_parquet = require_file(ds.path("aggregate_daily_1km"), label="parquet file")
+    output_gpkg = output_path(ds, "species_count_1km.gpkg")
 
     df = pl.read_parquet(input_parquet)
 
@@ -52,7 +42,7 @@ def main() -> None:
 
     if agg.is_empty():
         print("error: no grid cells after aggregation")
-        sys.exit(1)
+        raise SystemExit(1)
 
     grid_cells = agg["gridCellYKJ"].to_list()
     geometry = [ykj_cell_polygon(cell) for cell in grid_cells]
@@ -60,7 +50,6 @@ def main() -> None:
     cols["geometry"] = geometry
     gdf = gpd.GeoDataFrame(cols, crs=CRS)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
     gdf.to_file(output_gpkg, driver="GPKG", layer=GPKG_LAYER)
 
     counts = agg["species_count"]

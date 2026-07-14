@@ -8,14 +8,15 @@ summary sorted by trend descending.
 
 from __future__ import annotations
 
-import sys
 from datetime import date
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import polars as pl
 
-ROOT = Path(__file__).resolve().parent.parent
+from dataset_io import dataset_from_argv, output_path, require_file, write_csv
+
+USAGE = "uv run scripts/viz_species_yearly_trend.py <dataset-slug>"
 
 MIN_RECORDS = 10
 FIRST_YEAR = 2010
@@ -74,16 +75,8 @@ def plot_species_trend(
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print("Usage: uv run scripts/viz_species_yearly_trend.py <dataset-slug>")
-        sys.exit(1)
-
-    dataset_slug = sys.argv[1]
-    output_dir = ROOT / "output" / dataset_slug
-    path = output_dir / "aggregate_yearly_10km.parquet"
-    if not path.is_file():
-        print(f"error: missing parquet file: {path}")
-        sys.exit(1)
+    ds = dataset_from_argv(usage=USAGE)
+    path = require_file(ds.path("aggregate_yearly_10km"), label="parquet file")
 
     current_year = date.today().year
     years = list(range(FIRST_YEAR, current_year + 1))
@@ -115,7 +108,7 @@ def main() -> None:
         .sort("speciesName")
     )
 
-    chart_dir = output_dir / "trend"
+    chart_dir = output_path(ds, "trend/chart.png").parent
     trend_rows: list[dict[str, object]] = []
     for species_name, total_records in zip(
         species_totals["speciesName"].to_list(),
@@ -141,13 +134,9 @@ def main() -> None:
         out_path = chart_dir / species_name_to_chart_filename(species_name, trend)
         plot_species_trend(species_name, years, proportions, trend, out_path)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    trend_csv = output_dir / "viz_species_yearly_trend.csv"
-    trend_table = (
-        pl.DataFrame(trend_rows)
-        .sort("trend", descending=True)
-    )
-    trend_table.write_csv(trend_csv)
+    trend_csv = output_path(ds, "viz_species_yearly_trend.csv")
+    trend_table = pl.DataFrame(trend_rows).sort("trend", descending=True)
+    write_csv(trend_table, trend_csv)
 
     print(
         f"Wrote {trend_table.height} trend charts under {chart_dir} "

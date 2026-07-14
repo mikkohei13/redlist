@@ -16,7 +16,6 @@ cells one at a time (10 removals) and plot hull area vs removals.
 from __future__ import annotations
 
 import random
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -24,9 +23,10 @@ import polars as pl
 from pyproj import Transformer
 from shapely.geometry import MultiPoint, Polygon
 
+from dataset_io import dataset_from_argv, output_path, require_file, write_csv
 from gpkg_species_hulls import write_species_polygon_layers
 
-ROOT = Path(__file__).resolve().parent.parent
+USAGE = "uv run scripts/stats_species_convex_hull.py <dataset-slug>"
 
 N_REMOVAL_STEPS = 10
 N_SIM_RUNS = 50
@@ -218,30 +218,21 @@ def run_removal_simulation_charts(
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print("Usage: uv run scripts/stats_species_convex_hull.py <dataset-slug>")
-        sys.exit(1)
-
-    dataset_slug = sys.argv[1]
-    output_dir = ROOT / "output" / dataset_slug
-    aggregate_parquet = output_dir / "aggregate_yearly_10km.parquet"
-    if not aggregate_parquet.is_file():
-        print(f"error: missing parquet file: {aggregate_parquet}")
-        sys.exit(1)
+    ds = dataset_from_argv(usage=USAGE)
+    aggregate_parquet = require_file(ds.path("aggregate_yearly_10km"), label="parquet file")
 
     aggregated = pl.read_parquet(aggregate_parquet)
     out, gpkg_rows = hull_areas_table(aggregated)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_csv = output_dir / "stats_species_convex_hull.csv"
-    output_gpkg = output_dir / "stats_species_convex_hull.gpkg"
-    sim_chart_dir = output_dir / "hull_removal_sim"
-    out.write_csv(output_csv)
+    output_csv = output_path(ds, "stats_species_convex_hull.csv")
+    output_gpkg = output_path(ds, "stats_species_convex_hull.gpkg")
+    sim_chart_dir = output_path(ds, "hull_removal_sim/chart.png").parent
+    write_csv(out, output_csv)
     print(f"Wrote {output_csv} ({out.height} species)")
 
     n_layers = write_species_polygon_layers(output_gpkg, gpkg_rows)
     if n_layers == 0:
         print("error: no convex hull polygons to write to GeoPackage")
-        sys.exit(1)
+        raise SystemExit(1)
     print(f"Wrote {output_gpkg} ({n_layers} layers)")
 
     run_removal_simulation_charts(

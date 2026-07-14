@@ -13,15 +13,14 @@ wins).
 
 from __future__ import annotations
 
-import sys
 from collections import Counter
-from pathlib import Path
 
 import polars as pl
 
+from dataset_io import dataset_from_argv, output_path, require_file
 from stats_species_convex_hull import convex_hull_area_km2, lon_lat_to_xy_m
 
-ROOT = Path(__file__).resolve().parent.parent
+USAGE = "uv run scripts/stats_species_hull_row_impact.py <dataset-slug>"
 
 # EOO-style hull area thresholds (km²); crossed_threshold when full is above
 # and area-if-removed is below the same threshold (CR > EN > VU).
@@ -42,16 +41,8 @@ def red_list_crossed_threshold(area_full: float, area_if_removed: float) -> str 
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print("Usage: uv run scripts/stats_species_hull_row_impact.py <dataset-slug>")
-        sys.exit(1)
-
-    dataset_slug = sys.argv[1]
-    output_dir = ROOT / "output" / dataset_slug
-    aggregate_parquet = output_dir / "aggregate_yearly_10km.parquet"
-    if not aggregate_parquet.is_file():
-        print(f"error: missing parquet file: {aggregate_parquet}")
-        sys.exit(1)
+    ds = dataset_from_argv(usage=USAGE)
+    aggregate_parquet = require_file(ds.path("aggregate_yearly_10km"), label="parquet file")
 
     df = pl.read_parquet(aggregate_parquet)
     need = {"speciesName", "latitude", "longitude"}
@@ -65,8 +56,7 @@ def main() -> None:
         print("error: no rows with speciesName and coordinates")
         raise SystemExit(1)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_xlsx = output_dir / "stats_species_hull_row_impact.xlsx"
+    output_xlsx = output_path(ds, "stats_species_hull_row_impact.xlsx")
 
     out_rows: list[dict[str, object]] = []
 
