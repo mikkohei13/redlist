@@ -20,7 +20,12 @@ USAGE = "uv run scripts/viz_species_yearly_trend.py <dataset-slug>"
 
 MIN_RECORDS = 10
 FIRST_YEAR = 2010
+INCLUDE_CURRENT_YEAR = False
 
+if INCLUDE_CURRENT_YEAR:
+    LAST_YEAR = date.today().year
+else:
+    LAST_YEAR = date.today().year - 1
 
 def linear_slope(xs: list[float], ys: list[float]) -> float:
     n = len(xs)
@@ -35,12 +40,12 @@ def linear_slope(xs: list[float], ys: list[float]) -> float:
     return num / den
 
 
-def species_name_to_chart_filename(species_name: str, trend: float) -> str:
+def species_name_to_chart_filename(species_name: str) -> str:
     safe = "".join(c if c.isalnum() or c in "._- " else "_" for c in species_name)
     safe = "_".join(safe.split())
     if len(safe) > 120:
         safe = safe[:120]
-    return f"{safe}-{trend:.6f}.png"
+    return f"{safe}.png"
 
 
 def plot_species_trend(
@@ -78,10 +83,11 @@ def main() -> None:
     ds = dataset_from_argv(usage=USAGE)
     path = require_file(ds.path("aggregate_yearly_10km"), label="parquet file")
 
-    current_year = date.today().year
-    years = list(range(FIRST_YEAR, current_year + 1))
+    years = list(range(FIRST_YEAR, LAST_YEAR + 1))
 
-    df = pl.read_parquet(path).filter(pl.col("year") >= FIRST_YEAR)
+    df = pl.read_parquet(path).filter(
+        (pl.col("year") >= FIRST_YEAR) & (pl.col("year") <= LAST_YEAR)
+    )
 
     yearly_totals = (
         df.group_by("year")
@@ -130,8 +136,10 @@ def main() -> None:
             proportions.append(count / total if total else 0.0)
 
         trend = linear_slope([float(y) for y in years], proportions)
-        trend_rows.append({"speciesName": species_name, "trend": trend})
-        out_path = chart_dir / species_name_to_chart_filename(species_name, trend)
+        trend_rows.append(
+            {"speciesName": species_name, "total_records": total_records, "trend": trend}
+        )
+        out_path = chart_dir / species_name_to_chart_filename(species_name)
         plot_species_trend(species_name, years, proportions, trend, out_path)
 
     trend_csv = output_path(ds, "viz_species_yearly_trend.csv")
@@ -140,7 +148,7 @@ def main() -> None:
 
     print(
         f"Wrote {trend_table.height} trend charts under {chart_dir} "
-        f"(species with >={MIN_RECORDS} records, {FIRST_YEAR}–{current_year})"
+        f"(species with >={MIN_RECORDS} records, {FIRST_YEAR}–{LAST_YEAR})"
     )
     print(f"Wrote {trend_csv} ({trend_table.height} species)")
 
