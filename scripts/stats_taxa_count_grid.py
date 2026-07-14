@@ -9,51 +9,35 @@ Writes Parquet (tabular) and GeoPackage (1 km square polygons, CRS EPSG:3067) fo
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import geopandas as gpd
 import numpy as np
 import polars as pl
 from pyproj import Transformer
 from shapely.geometry import box
 
-ROOT = Path(__file__).resolve().parent.parent
+from dataset_io import (
+    dataset_from_argv,
+    output_path,
+    require_file,
+    scan_finbif_occurrences,
+    write_parquet,
+)
+
+USAGE = "uv run scripts/stats_taxa_count_grid.py <dataset-slug>"
 
 # EPSG:3067 — ETRS-TM35FIN (EUREF-FIN), metres. Cell size on the projected plane.
 CELL_SIZE_M = 500
 CRS_LABEL = "EPSG:3067"
 GPKG_LAYER = f"taxa_{CELL_SIZE_M}m"
 
-# FinBIF occurrences export: English header row, then three translated label rows.
-SKIP_ROWS_AFTER_HEADER = 3
-
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print("Usage: uv run scripts/stats_taxa_count_grid.py <dataset-slug>")
-        sys.exit(1)
+    ds = dataset_from_argv(usage=USAGE)
+    raw_occurrences = require_file(ds.path("raw_occurrences"), label="occurrences file")
+    taxa_per_cell_parquet = output_path(ds, f"taxa_per_{CELL_SIZE_M}m_cell.parquet")
+    taxa_per_cell_gpkg = output_path(ds, f"taxa_per_{CELL_SIZE_M}m_cell.gpkg")
 
-    dataset_slug = sys.argv[1]
-    raw_occurrences = ROOT / "data" / dataset_slug / "occurrences.txt"
-    output_dir = ROOT / "output" / dataset_slug
-    taxa_per_cell_parquet = output_dir / f"taxa_per_{CELL_SIZE_M}m_cell.parquet"
-    taxa_per_cell_gpkg = output_dir / f"taxa_per_{CELL_SIZE_M}m_cell.gpkg"
-
-    if not raw_occurrences.is_file():
-        print(f"error: missing occurrences file: {raw_occurrences}")
-        sys.exit(1)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    lf = pl.scan_csv(
-        raw_occurrences,
-        separator="\t",
-        quote_char=None,
-        skip_rows_after_header=SKIP_ROWS_AFTER_HEADER,
-        infer_schema_length=10_000,
-        try_parse_dates=False,
-    ).select(
+    lf = scan_finbif_occurrences(raw_occurrences, try_parse_dates=False).select(
         pl.col("decimalLatitude").cast(pl.Float64, strict=False).alias("decimalLatitude"),
         pl.col("decimalLongitude").cast(pl.Float64, strict=False).alias("decimalLongitude"),
         pl.col("scientificName").cast(pl.Utf8, strict=False).alias("scientificName"),
@@ -136,7 +120,7 @@ def main() -> None:
         pl.col("distinct_scientificName_count_uncapped") > pl.lit(cap_m)
     ).sort("distinct_scientificName_count_uncapped", descending=True)
 
-    agg.write_parquet(taxa_per_cell_parquet, compression="zstd", statistics=True)
+    write_parquet(agg, taxa_per_cell_parquet)
 
     ee = agg["cell_easting_m"].to_numpy()
     nn = agg["cell_northing_m"].to_numpy()

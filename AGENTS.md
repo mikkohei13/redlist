@@ -1,11 +1,33 @@
-All code is run with uv.
 
-This is a small one-person project, so keep the code simple.
+## Conventions
 
-Don't create features user is not asking for.
+- Keep code simple. This is a small one-person project.
+- Do not add features the user did not ask for.
+- No CLI args beyond `<dataset-slug>` unless explicitly requested.
+- No extensive error handling or fallback logic. Missing input → print an error and exit.
+- Do not update `README.md` unless asked.
+- Match existing style: Polars for tabular work, minimal abstractions, no one-off helpers.
 
-No command line arguments unless the developer specifically requests them.
+## Architecture
 
-No extensive error checking or fallback logic. If something is missing, just print an error and exit.
+All code runs with `uv`.
 
-Avoid extensive automated tests or running smoke tests. I will manually test the code.
+- **`preprocess_occurrences.py`** (repo root) — FinBIF DwC TSV → Parquet aggregates in `output/{slug}/`. Not in `scripts/`.
+- **`scripts/`** — analysis only. One argument: `<dataset-slug>`. Use `scripts/dataset_io.py` for all paths and I/O.
+- **`data/`**, **`output/`** — gitignored local data; never commit.
+
+| Location | Purpose |
+|---|---|
+| `data/{slug}/occurrences.txt` | raw FinBIF export |
+| `data/ykj-centerpoints.csv` | shared YKJ grid lookup |
+| `output/{slug}/` | preprocessed Parquet + script outputs |
+
+Inputs via `ds.path(...)`: `occurrences`, `aggregate_yearly_10km`, `aggregate_daily_10km`, `aggregate_daily_1km`, `aggregate_dayofyear_10km`, `raw_occurrences`, `ykj_centerpoints`.
+
+Output basename defaults to script stem (`stats_foo.py` → `stats_foo.csv`); override when domain-specific.
+
+## New script
+
+1. Copy `scripts/_template.py` → `scripts/<name>.py`.
+2. `dataset_from_argv` + `require_file(ds.path(...))` for inputs at top of `main()`.
+3. Domain logic, then `output_path` and writers from `dataset_io`.
