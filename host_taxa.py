@@ -84,28 +84,28 @@ def host_fields_from_response(data: dict) -> dict[str, str | None]:
         vernacular_name = hit.get("vernacularName")
         taxon_rank = hit.get("taxonRank")
 
-        taxon_normalized = None
+        host_taxon_normalized = None
         if scientific_name and vernacular_name:
-            taxon_normalized = f"{scientific_name} - {vernacular_name}"
+            host_taxon_normalized = f"{scientific_name} - {vernacular_name}"
 
-        species_scientific = (
+        host_species = (
             scientific_name if taxon_rank == "MX.species" and scientific_name else None
         )
 
-        genus_scientific = None
+        host_genus = None
         if taxon_rank in GENUS_RANKS and scientific_name:
-            genus_scientific = scientific_name.split(" ", 1)[0]
+            host_genus = scientific_name.split(" ", 1)[0]
 
         return {
-            "taxon_normalized": taxon_normalized,
-            "species_scientific": species_scientific,
-            "genus_scientific": genus_scientific,
+            "host_taxon_normalized": host_taxon_normalized,
+            "host_species": host_species,
+            "host_genus": host_genus,
         }
 
     return {
-        "taxon_normalized": None,
-        "species_scientific": None,
-        "genus_scientific": None,
+        "host_taxon_normalized": None,
+        "host_species": None,
+        "host_genus": None,
     }
 
 
@@ -137,7 +137,7 @@ def normalize_hosts_in_parquet(
             "cache_hits": 0,
             "api_calls": 0,
             "exact_matches": 0,
-            "rows_with_taxon_normalized": 0,
+            "rows_with_host_taxon_normalized": 0,
         }
 
     print(f"  {len(hosts)} distinct host values")
@@ -158,11 +158,11 @@ def normalize_hosts_in_parquet(
 
         fields = host_fields_from_response(response)
         normalized_by_host[host] = fields
-        if fields["taxon_normalized"] is not None:
+        if fields["host_taxon_normalized"] is not None:
             exact_matches += 1
             print(
                 f"  [{i}/{len(hosts)}] {host!r} ({source}) -> "
-                f"{fields['taxon_normalized']}"
+                f"{fields['host_taxon_normalized']}"
             )
         else:
             print(f"  [{i}/{len(hosts)}] {host!r} ({source}) -> no exact match")
@@ -170,21 +170,29 @@ def normalize_hosts_in_parquet(
     mapping = pl.DataFrame(
         {
             "host": list(normalized_by_host.keys()),
-            "taxon_normalized": [
-                fields["taxon_normalized"] for fields in normalized_by_host.values()
+            "host_taxon_normalized": [
+                fields["host_taxon_normalized"]
+                for fields in normalized_by_host.values()
             ],
-            "species_scientific": [
-                fields["species_scientific"] for fields in normalized_by_host.values()
+            "host_species": [
+                fields["host_species"] for fields in normalized_by_host.values()
             ],
-            "genus_scientific": [
-                fields["genus_scientific"] for fields in normalized_by_host.values()
+            "host_genus": [
+                fields["host_genus"] for fields in normalized_by_host.values()
             ],
         }
     )
 
     drop_cols = [
         c
-        for c in ("taxon_normalized", "species_scientific", "genus_scientific")
+        for c in (
+            "host_taxon_normalized",
+            "host_species",
+            "host_genus",
+            "taxon_normalized",
+            "species_scientific",
+            "genus_scientific",
+        )
         if c in occurrences.columns
     ]
     if drop_cols:
@@ -195,11 +203,12 @@ def normalize_hosts_in_parquet(
     occurrences.write_parquet(parquet_path, compression="zstd", statistics=True)
 
     rows_with_normalized = occurrences.filter(
-        pl.col("taxon_normalized").is_not_null()
+        pl.col("host_taxon_normalized").is_not_null()
     ).height
     print(
         f"  done: {cache_hits} cache hits, {api_calls} API calls, "
-        f"{exact_matches} exact matches, {rows_with_normalized} rows with taxon_normalized"
+        f"{exact_matches} exact matches, "
+        f"{rows_with_normalized} rows with host_taxon_normalized"
     )
 
     return {
@@ -207,5 +216,5 @@ def normalize_hosts_in_parquet(
         "cache_hits": cache_hits,
         "api_calls": api_calls,
         "exact_matches": exact_matches,
-        "rows_with_taxon_normalized": rows_with_normalized,
+        "rows_with_host_taxon_normalized": rows_with_normalized,
     }

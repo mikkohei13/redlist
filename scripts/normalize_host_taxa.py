@@ -1,5 +1,5 @@
 """
-Resolve host names via FinBIF /taxa/search and add taxon_normalized to occurrences.parquet.
+Resolve host names via FinBIF /taxa/search and add host_taxon_normalized to occurrences.parquet.
 
 Requires FINBIF_ACCESS_TOKEN in the environment.
 API responses are cached under cache/ (gitignored).

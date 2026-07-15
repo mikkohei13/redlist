@@ -28,6 +28,8 @@ Output basename defaults to script stem (`stats_foo.py` → `stats_foo.csv`); ov
 
 ## New script
 
+Script files are in `scripts/`. They should be independent from each other.
+
 1. Copy `scripts/_template.py` → `scripts/<name>.py`.
 2. `dataset_from_argv` + `require_file(ds.path(...))` for inputs at top of `main()`.
 3. Domain logic, then `output_path` and writers from `dataset_io`.

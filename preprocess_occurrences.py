@@ -101,20 +101,22 @@ def print_statistics(parquet_path: Path) -> None:
         print(f"  {count}\t{host}")
 
     schema = pl.scan_parquet(parquet_path).collect_schema()
-    if "taxon_normalized" in schema:
+    if "host_taxon_normalized" in schema:
         normalized_counts = (
-            lf.filter(pl.col("taxon_normalized").is_not_null())
-            .group_by("taxon_normalized")
+            lf.filter(pl.col("host_taxon_normalized").is_not_null())
+            .group_by("host_taxon_normalized")
             .len()
             .sort("len", descending=True)
             .collect()
         )
         print(
-            f"taxon_normalized: {normalized_counts['len'].sum()} rows, "
+            f"host_taxon_normalized: {normalized_counts['len'].sum()} rows, "
             f"{normalized_counts.height} distinct values"
         )
-        print("taxon_normalized counts (descending):")
-        for name, count in normalized_counts.select("taxon_normalized", "len").iter_rows():
+        print("host_taxon_normalized counts (descending):")
+        for name, count in normalized_counts.select(
+            "host_taxon_normalized", "len"
+        ).iter_rows():
             print(f"  {count}\t{name}")
 
 
