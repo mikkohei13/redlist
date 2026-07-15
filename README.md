@@ -32,3 +32,6 @@ Preprocessing writes normalized Parquet files and small JSON samples to `output/
 - New analysis scripts: copy `scripts/_template.py`, use `scripts/dataset_io.py` for paths and I/O.
 - See `AGENTS.md` for conventions when working with a coding agent.
 
+## Todo
+
+- Add year to 1km aggregate, then make convex hull polygon calculation based on that.

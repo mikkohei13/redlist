@@ -3,6 +3,7 @@ Load FinBIF occurrences.txt (tab-separated DwC), preprocess, write Parquet.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -10,11 +11,16 @@ import numpy as np
 import polars as pl
 from pyproj import Transformer
 
+from host_taxa import FinBifApiError, TOKEN_ENV, normalize_hosts_in_parquet
+
 ROOT = Path(__file__).resolve().parent
 YKJ_CENTERPOINTS = ROOT / "data" / "ykj-centerpoints.csv"
+CACHE_DIR = ROOT / "cache"
 
 # FinBIF occurrences export: English header row, then three translated label rows.
 SKIP_ROWS_AFTER_HEADER = 3
+
+HOST_FACT = "http://tun.fi/MY.hostInformalNameString"
 
 # Small on-disk row samples (JSON array of objects only).
 SAMPLE_ROW_COUNT = 5
@@ -69,9 +75,9 @@ def write_sample_rows_json(path: Path, df: pl.DataFrame) -> None:
 
 
 def print_statistics(parquet_path: Path) -> None:
+    lf = pl.scan_parquet(parquet_path)
     species_counts = (
-        pl.scan_parquet(parquet_path)
-        .group_by("speciesName")
+        lf.group_by("speciesName")
         .len()
         .sort("len", descending=True)
         .collect()
@@ -82,6 +88,35 @@ def print_statistics(parquet_path: Path) -> None:
     for name, count in species_counts.select("speciesName", "len").iter_rows():
         print(f"  {count}\t{name}")
 
+    host_counts = (
+        lf.filter(pl.col("host").is_not_null())
+        .group_by("host")
+        .len()
+        .sort("len", descending=True)
+        .collect()
+    )
+    print(f"host: {host_counts['len'].sum()} rows, {host_counts.height} distinct values")
+    print("host counts (descending):")
+    for host, count in host_counts.select("host", "len").iter_rows():
+        print(f"  {count}\t{host}")
+
+    schema = pl.scan_parquet(parquet_path).collect_schema()
+    if "taxon_normalized" in schema:
+        normalized_counts = (
+            lf.filter(pl.col("taxon_normalized").is_not_null())
+            .group_by("taxon_normalized")
+            .len()
+            .sort("len", descending=True)
+            .collect()
+        )
+        print(
+            f"taxon_normalized: {normalized_counts['len'].sum()} rows, "
+            f"{normalized_counts.height} distinct values"
+        )
+        print("taxon_normalized counts (descending):")
+        for name, count in normalized_counts.select("taxon_normalized", "len").iter_rows():
+            print(f"  {count}\t{name}")
+
 
 def main() -> None:
     if len(sys.argv) != 2:
@@ -90,6 +125,7 @@ def main() -> None:
 
     dataset_id = sys.argv[1]
     raw_occurrences = ROOT / "data" / dataset_id / "occurrences.txt"
+    occurrence_facts = ROOT / "data" / dataset_id / "facts" / "occurrence_facts.txt"
     output_dir = ROOT / "output" / dataset_id
     processed_parquet = output_dir / "occurrences.parquet"
     aggregate_yearly_10km = output_dir / "aggregate_yearly_10km.parquet"
@@ -154,11 +190,49 @@ def main() -> None:
         _event_parts.list.first().str.strip_chars().alias("eventDateBegin"),
     ).drop("_year_prefix")
 
+    if occurrence_facts.is_file():
+        print(f"loading host facts from {occurrence_facts}")
+        hosts = (
+            pl.scan_csv(occurrence_facts, separator="\t", quote_char=None)
+            .filter(pl.col("fact") == HOST_FACT)
+            .select("occurrenceID", pl.col("value").alias("host"))
+        )
+        lf = lf.join(hosts, on="occurrenceID", how="left")
+    else:
+        print(f"no occurrence facts file at {occurrence_facts}, host column will be null")
+        lf = lf.with_columns(pl.lit(None).cast(pl.Utf8).alias("host"))
+
+    print(f"writing {processed_parquet}")
     lf.sink_parquet(
         processed_parquet,
         compression="zstd",
         statistics=True,
     )
+
+    host_count = (
+        pl.scan_parquet(processed_parquet)
+        .filter(pl.col("host").is_not_null())
+        .select(pl.len())
+        .collect()
+        .item()
+    )
+    if host_count:
+        token = os.environ.get(TOKEN_ENV)
+        if not token:
+            print(f"error: {host_count} rows have host but {TOKEN_ENV} is not set")
+            sys.exit(1)
+        try:
+            normalize_hosts_in_parquet(
+                processed_parquet,
+                token=token,
+                cache_dir=CACHE_DIR,
+            )
+        except FinBifApiError as exc:
+            print(f"error: {exc}")
+            sys.exit(1)
+    else:
+        print("no host values, skipping FinBIF normalization")
+
     print_statistics(processed_parquet)
 
     proc_for_sample = (
