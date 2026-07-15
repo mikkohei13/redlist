@@ -237,6 +237,7 @@ def main() -> None:
 
     proc_for_sample = (
         pl.scan_parquet(processed_parquet)
+        .filter(pl.col("host").is_not_null())
         .head(SAMPLE_PARQUET_MAX_ROWS)
         .collect()
     )

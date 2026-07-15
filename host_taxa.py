@@ -70,15 +70,43 @@ def fetch_taxa_search(query: str, token: str, *, cache_dir: Path) -> tuple[dict,
     return data, False
 
 
-def taxon_normalized_from_response(data: dict) -> str | None:
+GENUS_RANKS = frozenset(
+    {"MX.species", "MX.aggregate", "MX.subgenus", "MX.genus"}
+)
+
+
+def host_fields_from_response(data: dict) -> dict[str, str | None]:
     for hit in data.get("results", []):
         if hit.get("type") != "exactMatches":
             continue
+
         scientific_name = hit.get("scientificName")
         vernacular_name = hit.get("vernacularName")
+        taxon_rank = hit.get("taxonRank")
+
+        taxon_normalized = None
         if scientific_name and vernacular_name:
-            return f"{scientific_name} - {vernacular_name}"
-    return None
+            taxon_normalized = f"{scientific_name} - {vernacular_name}"
+
+        species_scientific = (
+            scientific_name if taxon_rank == "MX.species" and scientific_name else None
+        )
+
+        genus_scientific = None
+        if taxon_rank in GENUS_RANKS and scientific_name:
+            genus_scientific = scientific_name.split(" ", 1)[0]
+
+        return {
+            "taxon_normalized": taxon_normalized,
+            "species_scientific": species_scientific,
+            "genus_scientific": genus_scientific,
+        }
+
+    return {
+        "taxon_normalized": None,
+        "species_scientific": None,
+        "genus_scientific": None,
+    }
 
 
 def normalize_hosts_in_parquet(
@@ -114,7 +142,7 @@ def normalize_hosts_in_parquet(
 
     print(f"  {len(hosts)} distinct host values")
 
-    normalized_by_host: dict[str, str | None] = {}
+    normalized_by_host: dict[str, dict[str, str | None]] = {}
     cache_hits = 0
     api_calls = 0
     exact_matches = 0
@@ -128,23 +156,39 @@ def normalize_hosts_in_parquet(
             api_calls += 1
             source = "API"
 
-        normalized = taxon_normalized_from_response(response)
-        normalized_by_host[host] = normalized
-        if normalized is not None:
+        fields = host_fields_from_response(response)
+        normalized_by_host[host] = fields
+        if fields["taxon_normalized"] is not None:
             exact_matches += 1
-            print(f"  [{i}/{len(hosts)}] {host!r} ({source}) -> {normalized}")
+            print(
+                f"  [{i}/{len(hosts)}] {host!r} ({source}) -> "
+                f"{fields['taxon_normalized']}"
+            )
         else:
             print(f"  [{i}/{len(hosts)}] {host!r} ({source}) -> no exact match")
 
     mapping = pl.DataFrame(
         {
             "host": list(normalized_by_host.keys()),
-            "taxon_normalized": list(normalized_by_host.values()),
+            "taxon_normalized": [
+                fields["taxon_normalized"] for fields in normalized_by_host.values()
+            ],
+            "species_scientific": [
+                fields["species_scientific"] for fields in normalized_by_host.values()
+            ],
+            "genus_scientific": [
+                fields["genus_scientific"] for fields in normalized_by_host.values()
+            ],
         }
     )
 
-    if "taxon_normalized" in occurrences.columns:
-        occurrences = occurrences.drop("taxon_normalized")
+    drop_cols = [
+        c
+        for c in ("taxon_normalized", "species_scientific", "genus_scientific")
+        if c in occurrences.columns
+    ]
+    if drop_cols:
+        occurrences = occurrences.drop(drop_cols)
 
     occurrences = occurrences.join(mapping, on="host", how="left")
     parquet_path.parent.mkdir(parents=True, exist_ok=True)
