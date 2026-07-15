@@ -46,13 +46,14 @@ def plot_cumulative_hull_area(
     out_path: Path,
 ) -> None:
     fig, ax = plt.subplots(figsize=(10, 5))
+    ax.fill_between(years, areas_km2, color="lightblue", alpha=0.5)
     ax.plot(years, areas_km2, marker="o", linewidth=1.5, color="steelblue")
     ax.set_xlabel("Year")
     ax.set_ylabel("Cumulative convex hull area (km²)")
     ax.set_title(species_name)
     ax.set_xticks(years)
     ax.set_xticklabels(years, rotation=45, ha="right")
-    ax.set_ylim(bottom=0)
+    ax.set_ylim(0, 500_000)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
