@@ -1,52 +1,52 @@
 [
   {
-    "speciesName": "Peritrechus geniculatus",
-    "year": 2022,
-    "gridCellYKJ": "678:359",
-    "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230365",
-    "vernacularName": "ketoharmolude",
-    "latitude": 61.162381,
-    "longitude": 28.761779
-  },
-  {
-    "speciesName": "Plagiognathus chrysanthemi",
-    "year": 2019,
-    "gridCellYKJ": "677:351",
-    "occurrenceCount": 2,
-    "taxonConceptID": "http://tun.fi/MX.230033",
-    "vernacularName": "ketomustapolvi",
-    "latitude": 61.083819,
-    "longitude": 27.274823
-  },
-  {
-    "speciesName": "Lygus punctatus",
-    "year": 2021,
-    "gridCellYKJ": "690:340",
-    "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229914",
-    "vernacularName": "puolukkalude",
-    "latitude": 62.238565,
-    "longitude": 25.169226
-  },
-  {
-    "speciesName": "Nabis ferus",
-    "year": 2006,
+    "speciesName": "Orius niger",
+    "year": 2020,
     "gridCellYKJ": "667:336",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230131",
-    "vernacularName": "olkinaskalilude",
+    "taxonConceptID": "http://tun.fi/MX.230174",
+    "vernacularName": "sukarikkalude",
     "latitude": 60.164249,
     "longitude": 24.565173
   },
   {
-    "speciesName": "Sigara nigrolineata",
-    "year": 2021,
-    "gridCellYKJ": "685:359",
+    "speciesName": "Nysius thymi",
+    "year": 1972,
+    "gridCellYKJ": "668:338",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229646",
-    "vernacularName": "ojapikkumalluainen",
-    "latitude": 61.790235,
-    "longitude": 28.797617
+    "taxonConceptID": "http://tun.fi/MX.230269",
+    "vernacularName": "ketokirkilude",
+    "latitude": 60.260071,
+    "longitude": 24.919462
+  },
+  {
+    "speciesName": "Blepharidopterus angulatus",
+    "year": 2023,
+    "gridCellYKJ": "669:336",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.230007",
+    "vernacularName": "syp\u00e4kk\u00e4lude",
+    "latitude": 60.343591,
+    "longitude": 24.551813
+  },
+  {
+    "speciesName": "Camptozygum aequale",
+    "year": 1979,
+    "gridCellYKJ": "668:338",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.229929",
+    "vernacularName": "s\u00e4tki\u00e4islude",
+    "latitude": 60.260071,
+    "longitude": 24.919462
+  },
+  {
+    "speciesName": "Alloeotomus gothicus",
+    "year": 2024,
+    "gridCellYKJ": "667:337",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.229812",
+    "vernacularName": "hartokesakkolude",
+    "latitude": 60.167435,
+    "longitude": 24.745136
   }
 ]

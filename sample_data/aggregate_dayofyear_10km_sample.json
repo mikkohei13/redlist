@@ -1,57 +1,57 @@
 [
   {
-    "speciesName": "Adelphocoris lineolatus",
-    "year": 2014,
+    "speciesName": "Cymus aurescens",
+    "year": 2024,
     "dayOfYear": 207,
-    "gridCellYKJ": "678:344",
+    "gridCellYKJ": "667:336",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229878",
-    "vernacularName": "viiruviittalude",
-    "latitude": 61.169957,
-    "longitude": 25.974872
+    "taxonConceptID": "http://tun.fi/MX.230278",
+    "vernacularName": "typpymantelilude",
+    "latitude": 60.164249,
+    "longitude": 24.565173
   },
   {
-    "speciesName": "Orthocephalus vittipennis",
-    "year": 2023,
-    "dayOfYear": 181,
-    "gridCellYKJ": "670:328",
+    "speciesName": "Aradus betulae",
+    "year": 1961,
+    "dayOfYear": 207,
+    "gridCellYKJ": "668:336",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229961",
-    "vernacularName": "juovakimolude",
-    "latitude": 60.398619,
-    "longitude": 23.095338
+    "taxonConceptID": "http://tun.fi/MX.230241",
+    "vernacularName": "koivulatikka",
+    "latitude": 60.253921,
+    "longitude": 24.558514
   },
   {
-    "speciesName": "Derephysia foliacea",
-    "year": 2020,
-    "dayOfYear": 214,
-    "gridCellYKJ": "668:333",
+    "speciesName": "Nithecus jacobaeae",
+    "year": 2024,
+    "dayOfYear": 234,
+    "gridCellYKJ": "667:336",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229754",
-    "vernacularName": "kyp\u00e4r\u00e4lude",
-    "latitude": 60.242859,
-    "longitude": 24.017424
-  },
-  {
-    "speciesName": "Scolopostethus thomsoni",
-    "year": 2013,
-    "dayOfYear": 239,
-    "gridCellYKJ": "673:349",
-    "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230332",
-    "vernacularName": "nokkoskirjolude",
-    "latitude": 60.725088,
-    "longitude": 26.905283
+    "taxonConceptID": "http://tun.fi/MX.230264",
+    "vernacularName": "kuomalude",
+    "latitude": 60.164249,
+    "longitude": 24.565173
   },
   {
     "speciesName": "Monalocoris filicis",
-    "year": 2019,
-    "dayOfYear": 179,
-    "gridCellYKJ": "736:360",
+    "year": 1994,
+    "dayOfYear": 148,
+    "gridCellYKJ": "669:336",
     "occurrenceCount": 1,
     "taxonConceptID": "http://tun.fi/MX.229785",
     "vernacularName": "saniaislude",
-    "latitude": 66.359253,
-    "longitude": 29.342207
+    "latitude": 60.343591,
+    "longitude": 24.551813
+  },
+  {
+    "speciesName": "Closterotomus biclavatus",
+    "year": 2021,
+    "dayOfYear": 186,
+    "gridCellYKJ": "667:337",
+    "occurrenceCount": 1,
+    "taxonConceptID": "http://tun.fi/MX.229885",
+    "vernacularName": "kirjokauluslude",
+    "latitude": 60.167435,
+    "longitude": 24.745136
   }
 ]

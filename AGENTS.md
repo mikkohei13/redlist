@@ -15,6 +15,7 @@ All code runs with `uv`.
 - **`preprocess_occurrences.py`** (repo root) — FinBIF DwC TSV → Parquet aggregates in `output/{slug}/`. Not in `scripts/`.
 - **`scripts/`** — analysis only. One argument: `<dataset-slug>`. Use `scripts/dataset_io.py` for all paths and I/O.
 - **`data/`**, **`output/`** — gitignored local data; never commit.
+- **`sample_data/`** — sample data for agents: see this when thinking how scripts should read input data.
 
 | Location | Purpose |
 |---|---|

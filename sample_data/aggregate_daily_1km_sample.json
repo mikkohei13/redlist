@@ -1,52 +1,52 @@
 [
   {
-    "speciesName": "Scolopostethus thomsoni",
-    "eventDateBegin": "2020-03-05",
-    "gridCellYKJ": "6688:3215",
+    "speciesName": "Capsus ater",
+    "eventDateBegin": "2024-06-27",
+    "gridCellYKJ": "6680:3366",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230332",
-    "vernacularName": "nokkoskirjolude",
-    "latitude": 60.208299,
-    "longitude": 21.862608
+    "taxonConceptID": "http://tun.fi/MX.229945",
+    "vernacularName": "ketomustiainen",
+    "latitude": 60.214095,
+    "longitude": 24.588538
   },
   {
-    "speciesName": "Cyrtorhinus caricis",
-    "eventDateBegin": "2014-08-24",
-    "gridCellYKJ": "6724:3505",
+    "speciesName": "Calocoris affinis",
+    "eventDateBegin": "2024-07-28",
+    "gridCellYKJ": "6677:3367",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229995",
-    "vernacularName": "saraikkolude",
-    "latitude": 60.630884,
-    "longitude": 27.097384
+    "taxonConceptID": "http://tun.fi/MX.229882",
+    "vernacularName": "tarhakauluslude",
+    "latitude": 60.187518,
+    "longitude": 24.608519
   },
   {
-    "speciesName": "Trigonotylus fuscitarsis",
-    "eventDateBegin": "2018-07-12",
-    "gridCellYKJ": "6732:3490",
-    "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229858",
-    "vernacularName": "ruskosarvikeilap\u00e4\u00e4",
-    "latitude": 60.7026,
-    "longitude": 26.822939
+    "speciesName": "Carpocoris purpureipennis",
+    "eventDateBegin": "2024-07-27T16:05",
+    "gridCellYKJ": "6676:3374",
+    "occurrenceCount": 2,
+    "taxonConceptID": "http://tun.fi/MX.230523",
+    "vernacularName": "kuparilude",
+    "latitude": 60.180765,
+    "longitude": 24.7352
   },
   {
-    "speciesName": "Eurydema oleracea",
-    "eventDateBegin": "2022-06-21",
-    "gridCellYKJ": "6686:3337",
+    "speciesName": "Lygus rugulipennis",
+    "eventDateBegin": "2022-08-28T16:38",
+    "gridCellYKJ": "6675:3372",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230555",
-    "vernacularName": "kaalilude",
-    "latitude": 60.257341,
-    "longitude": 24.061279
+    "taxonConceptID": "http://tun.fi/MX.229915",
+    "vernacularName": "peltolude",
+    "latitude": 60.171177,
+    "longitude": 24.699817
   },
   {
-    "speciesName": "Elasmucha grisea",
-    "eventDateBegin": "2024-05-26",
-    "gridCellYKJ": "6695:3352",
+    "speciesName": "Lygus pratensis",
+    "eventDateBegin": "2025-08-23",
+    "gridCellYKJ": "6675:3372",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230487",
-    "vernacularName": "koivulude",
-    "latitude": 60.343749,
-    "longitude": 24.32531
+    "taxonConceptID": "http://tun.fi/MX.229913",
+    "vernacularName": "ketolude",
+    "latitude": 60.171177,
+    "longitude": 24.699817
   }
 ]

@@ -1,52 +1,52 @@
 [
   {
-    "speciesName": "Palomena prasina",
-    "eventDateBegin": "2014-08-03",
-    "gridCellYKJ": "686:359",
+    "speciesName": "Dicyphus globulifer",
+    "eventDateBegin": "2020-09-23",
+    "gridCellYKJ": "667:336",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230533",
-    "vernacularName": "viherlude",
-    "latitude": 61.879923,
-    "longitude": 28.802874
+    "taxonConceptID": "http://tun.fi/MX.229788",
+    "vernacularName": "rosoailakkilude",
+    "latitude": 60.164249,
+    "longitude": 24.565173
   },
   {
-    "speciesName": "Hesperocorixa sahlbergi",
-    "eventDateBegin": "2021-08-27",
-    "gridCellYKJ": "685:358",
+    "speciesName": "Psallus haematodes",
+    "eventDateBegin": "2017-08-08",
+    "gridCellYKJ": "667:336",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.229631",
-    "vernacularName": "moniraitamalluainen",
-    "latitude": 61.792584,
-    "longitude": 28.608151
+    "taxonConceptID": "http://tun.fi/MX.230069",
+    "vernacularName": "raidansuomulude",
+    "latitude": 60.164249,
+    "longitude": 24.565173
   },
   {
-    "speciesName": "Globiceps flavomaculatus",
-    "eventDateBegin": "2022-07-12",
-    "gridCellYKJ": "690:353",
+    "speciesName": "Scolopostethus thomsoni",
+    "eventDateBegin": "1934-04-21",
+    "gridCellYKJ": "667:338",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230004",
-    "vernacularName": "nurmipallop\u00e4\u00e4",
-    "latitude": 62.249027,
-    "longitude": 27.670212
+    "taxonConceptID": "http://tun.fi/MX.230332",
+    "vernacularName": "nokkoskirjolude",
+    "latitude": 60.170377,
+    "longitude": 24.925139
   },
   {
-    "speciesName": "Peritrechus geniculatus",
-    "eventDateBegin": "2020-06-19",
-    "gridCellYKJ": "675:348",
+    "speciesName": "Anthocoris minki",
+    "eventDateBegin": "2019-08-20",
+    "gridCellYKJ": "667:337",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230365",
-    "vernacularName": "ketoharmolude",
-    "latitude": 60.904321,
-    "longitude": 26.720489
+    "taxonConceptID": "http://tun.fi/MX.4994292",
+    "vernacularName": "poppelinokkalude",
+    "latitude": 60.167435,
+    "longitude": 24.745136
   },
   {
-    "speciesName": "Aradus corticalis",
-    "eventDateBegin": "2020-01-21",
-    "gridCellYKJ": "672:350",
+    "speciesName": "Acanthosoma haemorrhoidale",
+    "eventDateBegin": "2024-08-16",
+    "gridCellYKJ": "666:336",
     "occurrenceCount": 1,
-    "taxonConceptID": "http://tun.fi/MX.230246",
-    "vernacularName": "k\u00e4\u00e4p\u00e4latikka",
-    "latitude": 60.635346,
-    "longitude": 27.088272
+    "taxonConceptID": "http://tun.fi/MX.230477",
+    "vernacularName": "tuomilude",
+    "latitude": 60.074575,
+    "longitude": 24.57179
   }
 ]
