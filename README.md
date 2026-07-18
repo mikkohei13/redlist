@@ -18,7 +18,7 @@ sample_data/                # example output formats (for reference)
 ## Usage
 
 1. Download a citable occurrence export from FinBIF and unzip it to `data/{dataset-slug}/`.
-2. Preprocess: `uv run preprocess_occurrences.py <dataset-slug>`
+2. Preprocess: `uv run --env-file .env preprocess_occurrences.py <dataset-slug>`
 3. Run analysis scripts as needed: `uv run scripts/<name>.py <dataset-slug>`
 
 Preprocessing writes normalized Parquet files and small JSON samples to `output/{dataset-slug}/`. Scripts read from there (or, in a few cases, directly from the raw TSV) and write results to the same output folder.
@@ -32,6 +32,3 @@ Preprocessing writes normalized Parquet files and small JSON samples to `output/
 - New analysis scripts: copy `scripts/_template.py`, use `scripts/dataset_io.py` for paths and I/O.
 - See `AGENTS.md` for conventions when working with a coding agent.
 
-## Todo
-
-- Add year to 1km aggregate, then make convex hull polygon calculation based on that.

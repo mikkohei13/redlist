@@ -1,5 +1,5 @@
 """
-FinBIF /taxa/search lookups for host names. Responses cached under cache/.
+FinBIF /taxa/search and /taxa/{id} lookups for host names. Responses cached under cache/.
 """
 
 from __future__ import annotations
@@ -14,37 +14,31 @@ from pathlib import Path
 
 import polars as pl
 
-API_URL = "https://api.laji.fi/taxa/search"
+TAXA_SEARCH_URL = "https://api.laji.fi/taxa/search"
+TAXA_URL = "https://api.laji.fi/taxa"
 TOKEN_ENV = "FINBIF_ACCESS_TOKEN"
 RATE_LIMIT_SECONDS = 0.1
+
+_API_HEADERS = {
+    "accept": "application/json",
+    "Accept-Language": "fi",
+    "API-Version": "1",
+}
 
 
 class FinBifApiError(RuntimeError):
     pass
 
 
-def cache_path(query: str, cache_dir: Path) -> Path:
-    key = hashlib.sha256(query.encode("utf-8")).hexdigest()
-    return cache_dir / f"{key}.json"
+def cache_path(key: str, cache_dir: Path) -> Path:
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    return cache_dir / f"{digest}.json"
 
 
-def fetch_taxa_search(query: str, token: str, *, cache_dir: Path) -> tuple[dict, bool]:
-    """Return (response_json, from_cache)."""
-    path = cache_path(query, cache_dir)
-    if path.is_file():
-        return json.loads(path.read_text(encoding="utf-8")), True
-
-    params = urllib.parse.urlencode(
-        {"query": query, "limit": 10, "includeHidden": "false"}
-    )
+def _get_json(url: str, token: str, *, label: str) -> dict:
     req = urllib.request.Request(
-        f"{API_URL}?{params}",
-        headers={
-            "accept": "application/json",
-            "Authorization": f"Bearer {token}",
-            "Accept-Language": "fi",
-            "API-Version": "1",
-        },
+        url,
+        headers={**_API_HEADERS, "Authorization": f"Bearer {token}"},
     )
     try:
         with urllib.request.urlopen(req) as resp:
@@ -52,15 +46,31 @@ def fetch_taxa_search(query: str, token: str, *, cache_dir: Path) -> tuple[dict,
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise FinBifApiError(
-            f"FinBIF API HTTP {exc.code} for query {query!r}: {body}"
+            f"FinBIF API HTTP {exc.code} for {label}: {body}"
         ) from exc
 
     if "errorCode" in data:
         raise FinBifApiError(
-            f"FinBIF API {data['errorCode']} for query {query!r}: "
+            f"FinBIF API {data['errorCode']} for {label}: "
             f"{data.get('message', '')}"
         )
+    return data
 
+
+def _cached_get(
+    cache_key: str,
+    url: str,
+    token: str,
+    *,
+    cache_dir: Path,
+    label: str,
+) -> tuple[dict, bool]:
+    """Return (response_json, from_cache)."""
+    path = cache_path(cache_key, cache_dir)
+    if path.is_file():
+        return json.loads(path.read_text(encoding="utf-8")), True
+
+    data = _get_json(url, token, label=label)
     cache_dir.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(data, indent=2, ensure_ascii=False) + "\n",
@@ -68,6 +78,39 @@ def fetch_taxa_search(query: str, token: str, *, cache_dir: Path) -> tuple[dict,
     )
     time.sleep(RATE_LIMIT_SECONDS)
     return data, False
+
+
+def fetch_taxa_search(query: str, token: str, *, cache_dir: Path) -> tuple[dict, bool]:
+    """Return (response_json, from_cache)."""
+    params = urllib.parse.urlencode(
+        {"query": query, "limit": 10, "includeHidden": "false"}
+    )
+    return _cached_get(
+        query,
+        f"{TAXA_SEARCH_URL}?{params}",
+        token,
+        cache_dir=cache_dir,
+        label=f"query {query!r}",
+    )
+
+
+def fetch_taxon(taxon_id: str, token: str, *, cache_dir: Path) -> tuple[dict, bool]:
+    """Return (response_json, from_cache) for GET /taxa/{id}."""
+    params = urllib.parse.urlencode(
+        {
+            "includeMedia": "false",
+            "includeDescriptions": "false",
+            "includeRedListEvaluations": "true",
+            "checklistVersion": "current",
+        }
+    )
+    return _cached_get(
+        f"taxon:{taxon_id}",
+        f"{TAXA_URL}/{urllib.parse.quote(taxon_id, safe='')}?{params}",
+        token,
+        cache_dir=cache_dir,
+        label=f"taxon {taxon_id!r}",
+    )
 
 
 GENUS_RANKS = frozenset(
@@ -98,14 +141,24 @@ def host_fields_from_response(data: dict) -> dict[str, str | None]:
 
         return {
             "host_taxon_normalized": host_taxon_normalized,
+            "host_taxon_id": hit.get("id"),
             "host_species": host_species,
             "host_genus": host_genus,
         }
 
     return {
         "host_taxon_normalized": None,
+        "host_taxon_id": None,
         "host_species": None,
         "host_genus": None,
+    }
+
+
+def family_fields_from_taxon(data: dict) -> dict[str, str | None]:
+    family = (data.get("parent") or {}).get("family") or {}
+    return {
+        "host_family": family.get("scientificName"),
+        "host_family_id": family.get("id"),
     }
 
 
@@ -167,6 +220,43 @@ def normalize_hosts_in_parquet(
         else:
             print(f"  [{i}/{len(hosts)}] {host!r} ({source}) -> no exact match")
 
+    taxon_ids = sorted(
+        {
+            fields["host_taxon_id"]
+            for fields in normalized_by_host.values()
+            if fields["host_taxon_id"]
+        }
+    )
+    print(f"  resolving family for {len(taxon_ids)} distinct host taxa")
+
+    family_by_taxon_id: dict[str, dict[str, str | None]] = {}
+    for i, taxon_id in enumerate(taxon_ids, start=1):
+        response, from_cache = fetch_taxon(taxon_id, token, cache_dir=cache_dir)
+        if from_cache:
+            cache_hits += 1
+            source = "cache"
+        else:
+            api_calls += 1
+            source = "API"
+
+        fields = family_fields_from_taxon(response)
+        family_by_taxon_id[taxon_id] = fields
+        if fields["host_family"] is not None:
+            print(
+                f"  [{i}/{len(taxon_ids)}] {taxon_id} ({source}) -> "
+                f"{fields['host_family']}"
+            )
+        else:
+            print(f"  [{i}/{len(taxon_ids)}] {taxon_id} ({source}) -> no family")
+
+    for fields in normalized_by_host.values():
+        taxon_id = fields["host_taxon_id"]
+        if taxon_id and taxon_id in family_by_taxon_id:
+            fields.update(family_by_taxon_id[taxon_id])
+        else:
+            fields["host_family"] = None
+            fields["host_family_id"] = None
+
     mapping = pl.DataFrame(
         {
             "host": list(normalized_by_host.keys()),
@@ -174,11 +264,20 @@ def normalize_hosts_in_parquet(
                 fields["host_taxon_normalized"]
                 for fields in normalized_by_host.values()
             ],
+            "host_taxon_id": [
+                fields["host_taxon_id"] for fields in normalized_by_host.values()
+            ],
             "host_species": [
                 fields["host_species"] for fields in normalized_by_host.values()
             ],
             "host_genus": [
                 fields["host_genus"] for fields in normalized_by_host.values()
+            ],
+            "host_family": [
+                fields["host_family"] for fields in normalized_by_host.values()
+            ],
+            "host_family_id": [
+                fields["host_family_id"] for fields in normalized_by_host.values()
             ],
         }
     )
@@ -187,8 +286,11 @@ def normalize_hosts_in_parquet(
         c
         for c in (
             "host_taxon_normalized",
+            "host_taxon_id",
             "host_species",
             "host_genus",
+            "host_family",
+            "host_family_id",
             "taxon_normalized",
             "species_scientific",
             "genus_scientific",

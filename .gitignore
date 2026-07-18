@@ -1,6 +1,7 @@
 **/output/**
 **/cache/**
 **/data/**
+.env
 
 .DS_Store
 
